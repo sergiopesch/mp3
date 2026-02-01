@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { spawn } from "child_process";
-import { mkdirSync, existsSync } from "fs";
+import { mkdirSync, existsSync, readdirSync } from "fs";
 import { join } from "path";
 import { randomUUID } from "crypto";
 
@@ -64,6 +64,16 @@ export async function POST(req: NextRequest) {
       let infoOutput = "";
       let infoError = "";
 
+      infoProc.on("error", (err: NodeJS.ErrnoException) => {
+        send({
+          type: "error",
+          message: err.code === "ENOENT"
+            ? "yt-dlp is not installed. Please install it with: pip install yt-dlp"
+            : `Failed to start yt-dlp: ${err.message}`,
+        });
+        controller.close();
+      });
+
       infoProc.stdout.on("data", (data: Buffer) => {
         infoOutput += data.toString();
       });
@@ -108,6 +118,16 @@ export async function POST(req: NextRequest) {
 
         let dlError = "";
         let lastFilename = "";
+
+        dlProc.on("error", (err: NodeJS.ErrnoException) => {
+          send({
+            type: "error",
+            message: err.code === "ENOENT"
+              ? "yt-dlp is not installed. Please install it with: pip install yt-dlp"
+              : `Failed to start yt-dlp: ${err.message}`,
+          });
+          controller.close();
+        });
 
         dlProc.stdout.on("data", (data: Buffer) => {
           const text = data.toString();
@@ -157,8 +177,7 @@ export async function POST(req: NextRequest) {
           }
 
           // Find the output file
-          const fs = require("fs");
-          const files: string[] = fs.readdirSync(outputDir);
+          const files: string[] = readdirSync(outputDir);
           const mp3File = files.find((f: string) => f.endsWith(".mp3"));
 
           if (!mp3File) {
