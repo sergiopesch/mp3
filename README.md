@@ -1,1 +1,156 @@
 # mp3
+
+A minimalistic web application that extracts high-quality audio from video URLs. Paste a link from YouTube, Vimeo, Twitter, TikTok, or 1000+ other platforms and download the audio as an MP3 file.
+
+Built with Next.js, React, and TypeScript. Powered by [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [ffmpeg](https://ffmpeg.org/) on the backend.
+
+## Features
+
+- **Universal platform support** — works with YouTube, Vimeo, Twitter/X, TikTok, SoundCloud, and [1000+ other sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md) supported by yt-dlp
+- **Best quality extraction** — downloads the highest quality audio and converts to MP3 at maximum bitrate (V0 VBR ~245 kbps)
+- **Embedded metadata** — preserves title, artist, album art, and other metadata from the source
+- **Real-time progress** — streaming progress updates via server-sent JSON lines so you see download and conversion status live
+- **Dark UI** — clean, minimalistic dark-mode interface
+- **Single-page workflow** — paste URL, extract, download — no page reloads
+
+## Prerequisites
+
+The application requires two system-level tools to be installed and available on your `PATH`:
+
+### yt-dlp
+
+[yt-dlp](https://github.com/yt-dlp/yt-dlp) is a command-line video downloader. Install it with one of:
+
+```bash
+# pip (recommended)
+pip install yt-dlp
+
+# Homebrew (macOS)
+brew install yt-dlp
+
+# apt (Debian/Ubuntu) — may be outdated, prefer pip
+sudo apt install yt-dlp
+```
+
+### ffmpeg
+
+[ffmpeg](https://ffmpeg.org/) is a multimedia framework used for audio conversion. Install it with one of:
+
+```bash
+# Homebrew (macOS)
+brew install ffmpeg
+
+# apt (Debian/Ubuntu)
+sudo apt install ffmpeg
+
+# Windows — download from https://ffmpeg.org/download.html
+```
+
+Verify both are installed:
+
+```bash
+yt-dlp --version
+ffmpeg -version
+```
+
+## Getting Started
+
+```bash
+# Clone the repository
+git clone https://github.com/sergiopesch/mp3.git
+cd mp3
+
+# Install dependencies
+npm install
+
+# Start the development server
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+## Scripts
+
+| Command         | Description                                  |
+| --------------- | -------------------------------------------- |
+| `npm run dev`   | Start the Next.js development server         |
+| `npm run build` | Create an optimized production build          |
+| `npm start`     | Start the production server (run build first) |
+
+## Project Structure
+
+```
+mp3/
+├── src/
+│   └── app/
+│       ├── api/
+│       │   ├── extract/
+│       │   │   └── route.ts        # POST /api/extract — audio extraction endpoint
+│       │   └── download/
+│       │       └── route.ts        # GET  /api/download — file download endpoint
+│       ├── layout.tsx              # Root layout with metadata
+│       ├── page.tsx                # Main page (client component)
+│       └── globals.css             # Global styles and CSS variables
+├── tmp/                            # Temporary storage for extracted files (gitignored)
+├── package.json
+├── tsconfig.json
+├── next.config.ts
+├── postcss.config.mjs
+└── .gitignore
+```
+
+## How It Works
+
+1. The user pastes a video URL into the input field and clicks **Extract Audio**
+2. The client sends a `POST /api/extract` request with the URL
+3. The server spawns `yt-dlp` to fetch video metadata (title, duration)
+4. The server spawns `yt-dlp` again with audio extraction flags to download and convert the video to MP3
+5. Progress updates are streamed back to the client in real time as newline-delimited JSON
+6. On completion, the client displays the video title, duration, and a **Download MP3** button
+7. Clicking download opens `GET /api/download?id=<jobId>&filename=<name>.mp3`, which streams the file from the server's `tmp/` directory
+
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for a detailed technical breakdown.
+
+## Tech Stack
+
+| Layer     | Technology                          |
+| --------- | ----------------------------------- |
+| Framework | [Next.js](https://nextjs.org/) 16   |
+| UI        | [React](https://react.dev/) 19      |
+| Language  | [TypeScript](https://www.typescriptlang.org/) 5 |
+| Styling   | [Tailwind CSS](https://tailwindcss.com/) 4 |
+| Audio     | [yt-dlp](https://github.com/yt-dlp/yt-dlp) + [ffmpeg](https://ffmpeg.org/) |
+| Runtime   | [Node.js](https://nodejs.org/) 18+  |
+
+## Configuration
+
+### Environment Variables
+
+No environment variables are required for basic operation. The application uses system-installed `yt-dlp` and `ffmpeg` binaries found on the `PATH`.
+
+Optional environment files (`.env`, `.env.local`, etc.) are gitignored. An `.env.example` template is excluded from the ignore rules if you need to add configuration in the future.
+
+### Next.js Config
+
+`next.config.ts` contains the Next.js configuration. Currently minimal with an empty `serverExternalPackages` array.
+
+### TypeScript Config
+
+`tsconfig.json` targets ES2017 with strict mode enabled. The path alias `@/*` maps to `./src/*`.
+
+## API Reference
+
+See [API.md](./API.md) for full endpoint documentation.
+
+**Quick summary:**
+
+- **`POST /api/extract`** — accepts `{ "url": "..." }`, streams progress as newline-delimited JSON, returns job metadata on completion
+- **`GET /api/download?id=<jobId>&filename=<name>`** — returns the extracted MP3 file as a download
+
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup and guidelines.
+
+## License
+
+ISC
