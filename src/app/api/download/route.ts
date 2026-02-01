@@ -1,40 +1,45 @@
 import { NextRequest } from "next/server";
-import { createReadStream, existsSync, statSync } from "fs";
-import { join } from "path";
-import { Readable } from "stream";
 
-const TMP_DIR = join(process.cwd(), "tmp");
+export const maxDuration = 60;
 
 export async function GET(req: NextRequest) {
-  const id = req.nextUrl.searchParams.get("id");
+  const downloadUrl = req.nextUrl.searchParams.get("url");
   const filename = req.nextUrl.searchParams.get("filename");
 
-  if (!id || !filename) {
-    return Response.json({ error: "Missing id or filename" }, { status: 400 });
+  if (!downloadUrl || !filename) {
+    return Response.json({ error: "Missing url or filename" }, { status: 400 });
   }
 
-  // Prevent path traversal
-  if (id.includes("..") || id.includes("/") || filename.includes("..") || filename.includes("/")) {
-    return Response.json({ error: "Invalid parameters" }, { status: 400 });
+  let parsed: URL;
+  try {
+    parsed = new URL(downloadUrl);
+  } catch {
+    return Response.json({ error: "Invalid URL" }, { status: 400 });
   }
 
-  const filePath = join(TMP_DIR, id, filename);
-
-  if (!existsSync(filePath)) {
-    return Response.json({ error: "File not found" }, { status: 404 });
+  if (parsed.protocol !== "https:") {
+    return Response.json({ error: "Only HTTPS URLs are allowed" }, { status: 400 });
   }
 
-  const stat = statSync(filePath);
-  const nodeStream = createReadStream(filePath);
+  try {
+    const response = await fetch(downloadUrl);
 
-  const webStream = Readable.toWeb(nodeStream) as ReadableStream;
+    if (!response.ok || !response.body) {
+      return Response.json({ error: "Download failed" }, { status: 502 });
+    }
 
-  return new Response(webStream, {
-    headers: {
+    const headers: Record<string, string> = {
       "Content-Type": "audio/mpeg",
-      "Content-Length": stat.size.toString(),
       "Content-Disposition": `attachment; filename="${encodeURIComponent(filename)}"`,
-      "Cache-Control": "private, max-age=3600",
-    },
-  });
+    };
+
+    const contentLength = response.headers.get("content-length");
+    if (contentLength) {
+      headers["Content-Length"] = contentLength;
+    }
+
+    return new Response(response.body, { headers });
+  } catch {
+    return Response.json({ error: "Download failed" }, { status: 502 });
+  }
 }

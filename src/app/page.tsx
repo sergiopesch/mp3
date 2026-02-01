@@ -5,9 +5,7 @@ import { useState, useRef, useCallback } from "react";
 type Status = "idle" | "extracting" | "done" | "error";
 
 interface JobResult {
-  id: string;
-  title: string;
-  duration: string;
+  downloadUrl: string;
   filename: string;
 }
 
@@ -27,7 +25,7 @@ export default function Home() {
     }
 
     setStatus("extracting");
-    setProgress("Starting extraction...");
+    setProgress("Processing...");
     setError("");
     setResult(null);
 
@@ -38,44 +36,14 @@ export default function Home() {
         body: JSON.stringify({ url: trimmed }),
       });
 
-      if (!res.ok) {
-        const data = await res.json();
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
         throw new Error(data.error || "Extraction failed");
       }
 
-      // Read streaming progress
-      const reader = res.body?.getReader();
-      const decoder = new TextDecoder();
-
-      if (!reader) throw new Error("No response stream");
-
-      let buffer = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          try {
-            const msg = JSON.parse(line);
-            if (msg.type === "progress") {
-              setProgress(msg.message);
-            } else if (msg.type === "done") {
-              setResult(msg.data);
-              setStatus("done");
-            } else if (msg.type === "error") {
-              throw new Error(msg.message);
-            }
-          } catch (e) {
-            if (e instanceof SyntaxError) continue;
-            throw e;
-          }
-        }
-      }
+      setResult(data);
+      setStatus("done");
     } catch (e) {
       setStatus("error");
       setError(e instanceof Error ? e.message : "Something went wrong");
@@ -84,7 +52,10 @@ export default function Home() {
 
   const handleDownload = useCallback(() => {
     if (!result) return;
-    window.open(`/api/download?id=${result.id}&filename=${encodeURIComponent(result.filename)}`, "_blank");
+    window.open(
+      `/api/download?url=${encodeURIComponent(result.downloadUrl)}&filename=${encodeURIComponent(result.filename)}`,
+      "_blank"
+    );
   }, [result]);
 
   const handleReset = useCallback(() => {
@@ -185,9 +156,9 @@ export default function Home() {
                     </svg>
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{result.title}</p>
+                    <p className="text-sm font-medium truncate">{result.filename}</p>
                     <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                      {result.duration} &middot; {result.filename}
+                      Ready to download
                     </p>
                   </div>
                 </div>
@@ -262,7 +233,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-[var(--border)] px-6 py-4">
         <div className="max-w-3xl mx-auto flex items-center justify-between text-xs text-[var(--accent-dim)]">
-          <span>Powered by yt-dlp &amp; ffmpeg</span>
+          <span>Powered by cobalt</span>
           <span>Best quality, always</span>
         </div>
       </footer>
