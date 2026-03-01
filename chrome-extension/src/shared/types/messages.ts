@@ -8,7 +8,11 @@ export type MessageType =
   | 'GET_HISTORY'
   | 'GET_SETTINGS'
   | 'UPDATE_SETTINGS'
-  | 'CLEAR_HISTORY';
+  | 'CLEAR_HISTORY'
+  | 'DETECT_MP3S'
+  | 'MP3S_DETECTED'
+  | 'EXTRACT_YOUTUBE_DATA'
+  | 'YOUTUBE_PLAYER_DATA';
 
 export interface ExtractAudioRequest {
   type: 'EXTRACT_AUDIO';

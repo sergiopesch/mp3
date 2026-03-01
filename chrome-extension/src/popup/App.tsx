@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ExtractForm from './components/ExtractForm';
 import { HistoryList } from './components/HistoryList';
 import { StatusMessage } from './components/StatusMessage';
+import { ProgressBar } from './components/ProgressBar';
 import { useExtract } from './hooks/useExtract';
 import { useHistory } from './hooks/useHistory';
 
@@ -9,7 +10,7 @@ type Tab = 'extract' | 'history';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('extract');
-  const { extract, status, error } = useExtract();
+  const { extract, status, progress, result, error, reset, download } = useExtract();
   const { history, loading, refresh, clearHistory } = useHistory();
 
   // Refresh history when switching to history tab
@@ -62,9 +63,27 @@ export default function App() {
       <main className="popup-content">
         {activeTab === 'extract' ? (
           <>
-            <ExtractForm onExtract={extract} loading={status === 'extracting'} />
-            {error && <StatusMessage type="error" message={error} />}
-            {status === 'done' && <StatusMessage type="success" message="Download started!" />}
+            {status === 'idle' && (
+              <ExtractForm onExtract={extract} loading={false} />
+            )}
+            {status === 'extracting' && (
+              <ProgressBar message={progress || 'Processing...'} />
+            )}
+            {status === 'done' && result && (
+              <StatusMessage
+                type="success"
+                filename={result.filename}
+                onDownload={download}
+                onReset={reset}
+              />
+            )}
+            {status === 'error' && (
+              <StatusMessage
+                type="error"
+                message={error}
+                onReset={reset}
+              />
+            )}
           </>
         ) : (
           <HistoryList

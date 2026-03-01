@@ -8,7 +8,8 @@
     "storage",
     "downloads",
     "contextMenus",
-    "activeTab"
+    "activeTab",
+    "notifications"
   ],
 
   "host_permissions": [
@@ -16,8 +17,7 @@
   ],
 
   "background": {
-    "service_worker": "background.js",
-    "type": "module"
+    "service_worker": "background.js"
   },
 
   "action": {
