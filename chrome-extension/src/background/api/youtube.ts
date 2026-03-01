@@ -1,8 +1,8 @@
 /**
  * YouTube Audio Extractor - Standalone (No Server Required!)
  *
- * This module extracts audio from YouTube videos using YouTube's public
- * video info endpoint. Works entirely in the browser.
+ * Uses YouTube's internal InnerTube API to extract audio streams.
+ * This is the same API the YouTube web player uses.
  */
 
 interface YouTubeFormat {
@@ -13,13 +13,6 @@ interface YouTubeFormat {
   audioQuality?: string;
   audioSampleRate?: string;
   contentLength?: string;
-}
-
-interface YouTubeVideoInfo {
-  formats: YouTubeFormat[];
-  adaptiveFormats: YouTubeFormat[];
-  title: string;
-  author: string;
 }
 
 export interface YouTubeAudioResult {
@@ -57,7 +50,7 @@ function extractVideoId(url: string): string | null {
  * Get the best audio format from available formats
  */
 function getBestAudioFormat(formats: YouTubeFormat[]): YouTubeFormat | null {
-  // Filter for audio-only formats
+  // Filter for audio-only formats (usually itag 140, 139, 251, etc.)
   const audioFormats = formats.filter(f =>
     f.mimeType?.includes('audio') && f.url
   );
@@ -73,10 +66,9 @@ function getBestAudioFormat(formats: YouTubeFormat[]): YouTubeFormat | null {
 }
 
 /**
- * Extract audio from a YouTube URL
+ * Extract audio from a YouTube URL using InnerTube API
  */
 export async function extractYouTubeAudio(url: string): Promise<YouTubeResponse> {
-  // Extract video ID
   const videoId = extractVideoId(url);
 
   if (!videoId) {
@@ -84,42 +76,52 @@ export async function extractYouTubeAudio(url: string): Promise<YouTubeResponse>
   }
 
   try {
-    // Method 1: Try using YouTube's embed page to get video info
-    // This endpoint is public and doesn't require authentication
-    const embedUrl = `https://www.youtube.com/embed/${videoId}`;
+    // Use YouTube's InnerTube API (same as the web player)
+    const response = await fetch('https://www.youtube.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        videoId: videoId,
+        context: {
+          client: {
+            clientName: 'WEB',
+            clientVersion: '2.20240304.00.00',
+            hl: 'en',
+            gl: 'US',
+            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          }
+        }
+      })
+    });
 
-    const embedResponse = await fetch(embedUrl);
-    const embedHtml = await embedResponse.text();
-
-    // Extract ytInitialPlayerResponse from the embed page
-    const match = embedHtml.match(/ytInitialPlayerResponse\s*=\s*({.+?});/);
-
-    if (!match || !match[1]) {
-      return { error: 'Could not fetch video information' };
+    if (!response.ok) {
+      return { error: 'Failed to fetch video data from YouTube' };
     }
 
-    const playerResponse = JSON.parse(match[1]);
+    const data = await response.json();
 
-    // Check if video is available
-    if (playerResponse.playabilityStatus?.status !== 'OK') {
-      const reason = playerResponse.playabilityStatus?.reason || 'Video unavailable';
+    // Check playability
+    if (data.playabilityStatus?.status !== 'OK') {
+      const reason = data.playabilityStatus?.reason || 'Video unavailable';
       return { error: reason };
     }
 
     // Get streaming data
-    const streamingData = playerResponse.streamingData;
+    const streamingData = data.streamingData;
 
     if (!streamingData) {
       return { error: 'No streaming data available' };
     }
 
-    // Combine formats and adaptive formats
+    // Combine all formats
     const allFormats = [
       ...(streamingData.formats || []),
       ...(streamingData.adaptiveFormats || [])
     ];
 
-    // Get the best audio format
+    // Get best audio format
     const audioFormat = getBestAudioFormat(allFormats);
 
     if (!audioFormat || !audioFormat.url) {
@@ -127,7 +129,7 @@ export async function extractYouTubeAudio(url: string): Promise<YouTubeResponse>
     }
 
     // Get video details
-    const videoDetails = playerResponse.videoDetails || {};
+    const videoDetails = data.videoDetails || {};
     const title = videoDetails.title || 'youtube_audio';
     const author = videoDetails.author || 'Unknown';
 
