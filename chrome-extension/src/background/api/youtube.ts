@@ -1,8 +1,8 @@
 /**
  * YouTube Audio Extractor - Standalone (No Server Required!)
  *
- * Uses YouTube's internal InnerTube API to extract audio streams.
- * This is the same API the YouTube web player uses.
+ * Uses YouTube's watch page to extract audio streams.
+ * This method scrapes the initial player data from the page.
  */
 
 interface YouTubeFormat {
@@ -66,7 +66,32 @@ function getBestAudioFormat(formats: YouTubeFormat[]): YouTubeFormat | null {
 }
 
 /**
- * Extract audio from a YouTube URL using InnerTube API
+ * Extract player response from YouTube watch page HTML
+ */
+function extractPlayerResponse(html: string): any {
+  // Try multiple patterns to find ytInitialPlayerResponse
+  const patterns = [
+    /var ytInitialPlayerResponse\s*=\s*({.+?});/,
+    /ytInitialPlayerResponse\s*=\s*({.+?});/,
+    /var ytInitialPlayerResponse\s*=\s*({.+?});<\/script>/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = html.match(pattern);
+    if (match && match[1]) {
+      try {
+        return JSON.parse(match[1]);
+      } catch (e) {
+        continue;
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Extract audio from a YouTube URL
  */
 export async function extractYouTubeAudio(url: string): Promise<YouTubeResponse> {
   const videoId = extractVideoId(url);
@@ -76,40 +101,36 @@ export async function extractYouTubeAudio(url: string): Promise<YouTubeResponse>
   }
 
   try {
-    // Use YouTube's InnerTube API (same as the web player)
-    const response = await fetch('https://www.youtube.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8', {
-      method: 'POST',
+    // Fetch the watch page directly
+    const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
+
+    const response = await fetch(watchUrl, {
       headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        videoId: videoId,
-        context: {
-          client: {
-            clientName: 'WEB',
-            clientVersion: '2.20240304.00.00',
-            hl: 'en',
-            gl: 'US',
-            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-          }
-        }
-      })
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      }
     });
 
     if (!response.ok) {
-      return { error: 'Failed to fetch video data from YouTube' };
+      return { error: 'Failed to fetch video page' };
     }
 
-    const data = await response.json();
+    const html = await response.text();
+
+    // Extract player response from the page
+    const playerResponse = extractPlayerResponse(html);
+
+    if (!playerResponse) {
+      return { error: 'Could not extract player data from page' };
+    }
 
     // Check playability
-    if (data.playabilityStatus?.status !== 'OK') {
-      const reason = data.playabilityStatus?.reason || 'Video unavailable';
+    if (playerResponse.playabilityStatus?.status !== 'OK') {
+      const reason = playerResponse.playabilityStatus?.reason || 'Video unavailable';
       return { error: reason };
     }
 
     // Get streaming data
-    const streamingData = data.streamingData;
+    const streamingData = playerResponse.streamingData;
 
     if (!streamingData) {
       return { error: 'No streaming data available' };
@@ -129,7 +150,7 @@ export async function extractYouTubeAudio(url: string): Promise<YouTubeResponse>
     }
 
     // Get video details
-    const videoDetails = data.videoDetails || {};
+    const videoDetails = playerResponse.videoDetails || {};
     const title = videoDetails.title || 'youtube_audio';
     const author = videoDetails.author || 'Unknown';
 
