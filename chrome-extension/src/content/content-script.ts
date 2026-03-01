@@ -92,22 +92,63 @@ function extractYouTubePlayerData(): any | null {
 }
 
 /**
+ * Find the player JS (base.js) URL from the current page.
+ * Needed for signature decryption.
+ */
+function findPlayerJsUrlFromPage(): string | null {
+  // Check for script tags with base.js
+  const scripts = Array.from(document.querySelectorAll('script[src*="/base.js"]'));
+  for (let i = 0; i < scripts.length; i++) {
+    return (scripts[i] as HTMLScriptElement).src;
+  }
+  // Try to find from page source
+  const allScripts = Array.from(document.querySelectorAll('script'));
+  for (let i = 0; i < allScripts.length; i++) {
+    const text = allScripts[i].textContent || '';
+    const match = text.match(/"jsUrl"\s*:\s*"([^"]*base\.js[^"]*)"/);
+    if (match) {
+      const jsUrl = match[1];
+      return jsUrl.startsWith('http') ? jsUrl : `https://www.youtube.com${jsUrl}`;
+    }
+  }
+  return null;
+}
+
+/**
  * Inject a script into the page to access YouTube's player data
  * from the main world (where JS globals like ytInitialPlayerResponse live).
  */
 function injectYouTubeDataExtractor(): void {
   if (!window.location.hostname.includes('youtube.com')) return;
 
+  // Remove any previous extraction element
+  const prev = document.getElementById('__mp3_extractor_yt_data');
+  if (prev) prev.remove();
+
   const script = document.createElement('script');
   script.textContent = `
     (function() {
       try {
-        // Check if ytInitialPlayerResponse exists as a global
+        var data = null;
+
+        // Try ytInitialPlayerResponse (available on initial page load)
         if (typeof ytInitialPlayerResponse !== 'undefined') {
+          data = ytInitialPlayerResponse;
+        }
+
+        // Try the player element's getPlayerResponse method
+        if (!data) {
+          var player = document.getElementById('movie_player');
+          if (player && player.getPlayerResponse) {
+            try { data = player.getPlayerResponse(); } catch(e) {}
+          }
+        }
+
+        if (data) {
           var el = document.createElement('div');
           el.id = '__mp3_extractor_yt_data';
           el.style.display = 'none';
-          el.textContent = JSON.stringify(ytInitialPlayerResponse);
+          el.textContent = JSON.stringify(data);
           document.body.appendChild(el);
         }
       } catch(e) {}
@@ -129,7 +170,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     // Small delay to let the injected script run
     setTimeout(() => {
       const data = extractYouTubePlayerData();
-      sendResponse({ playerData: data });
+      const playerJsUrl = findPlayerJsUrlFromPage();
+      sendResponse({ playerData: data, playerJsUrl });
     }, 100);
 
     // Return true for async sendResponse
