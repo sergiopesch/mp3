@@ -1,9 +1,15 @@
 /**
  * Cobalt API client for audio extraction
- * Migrated from /workspace/group/mp3/src/app/api/extract/route.ts
+ *
+ * IMPORTANT: This extension requires a proxy server to work!
+ *
+ * Setup Options:
+ * 1. Run the Next.js app locally: `npm run dev` in the mp3 directory (http://localhost:3000/api/extract)
+ * 2. Deploy the Next.js app to Vercel and update DEFAULT_API_URL below
+ * 3. Configure a custom endpoint in extension settings
  */
 
-const COBALT_API_URL = 'https://api.cobalt.tools/';
+const DEFAULT_API_URL = 'http://localhost:3000/api/extract';
 
 export interface CobaltRequest {
   url: string;
@@ -54,8 +60,13 @@ export async function extractAudio(
   }
 
   try {
-    // Call Cobalt API
-    const response = await fetch(COBALT_API_URL, {
+    // Get API endpoint from storage (user can configure it)
+    const { apiEndpoint } = await chrome.storage.local.get({
+      apiEndpoint: DEFAULT_API_URL
+    });
+
+    // Call proxy API endpoint (Next.js /api/extract route)
+    const response = await fetch(apiEndpoint, {
       method: 'POST',
       headers: {
         'Accept': 'application/json',
@@ -63,10 +74,7 @@ export async function extractAudio(
       },
       body: JSON.stringify({
         url: trimmedUrl,
-        downloadMode: 'audio',
-        audioFormat,
-        audioBitrate,
-      } as CobaltRequest),
+      }),
     });
 
     if (!response.ok) {

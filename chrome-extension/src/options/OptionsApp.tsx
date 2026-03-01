@@ -4,19 +4,23 @@ import { DEFAULT_SETTINGS } from '../shared/types/storage';
 
 const OptionsApp: React.FC = () => {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const [apiEndpoint, setApiEndpoint] = useState('http://localhost:3000/api/extract');
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     // Load settings from storage
-    chrome.storage.local.get('settings', (result) => {
+    chrome.storage.local.get(['settings', 'apiEndpoint'], (result) => {
       if (result.settings) {
         setSettings(result.settings);
+      }
+      if (result.apiEndpoint) {
+        setApiEndpoint(result.apiEndpoint);
       }
     });
   }, []);
 
   const handleSave = () => {
-    chrome.storage.local.set({ settings }, () => {
+    chrome.storage.local.set({ settings, apiEndpoint }, () => {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     });
@@ -25,7 +29,27 @@ const OptionsApp: React.FC = () => {
   return (
     <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
       <h1 style={{ marginBottom: '20px' }}>MP3 Extractor Settings</h1>
-      
+
+      <div style={{ marginBottom: '20px', padding: '12px', background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '4px' }}>
+        <strong>⚠️ Setup Required:</strong> This extension requires a proxy server. Run <code>npm run dev</code> in the mp3 directory or deploy the Next.js app to Vercel.
+      </div>
+
+      <div style={{ marginBottom: '20px' }}>
+        <label style={{ display: 'block', marginBottom: '8px' }}>
+          API Endpoint
+        </label>
+        <input
+          type="text"
+          value={apiEndpoint}
+          onChange={(e) => setApiEndpoint(e.target.value)}
+          placeholder="http://localhost:3000/api/extract"
+          style={{ width: '100%', padding: '8px', fontFamily: 'monospace' }}
+        />
+        <small style={{ color: '#666', marginTop: '4px', display: 'block' }}>
+          Default: http://localhost:3000/api/extract (local) or your deployed URL
+        </small>
+      </div>
+
       <div style={{ marginBottom: '20px' }}>
         <label style={{ display: 'block', marginBottom: '8px' }}>
           Audio Format
