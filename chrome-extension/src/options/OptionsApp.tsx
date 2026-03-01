@@ -30,8 +30,12 @@ const OptionsApp: React.FC = () => {
     <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
       <h1 style={{ marginBottom: '20px' }}>MP3 Extractor Settings</h1>
 
-      <div style={{ marginBottom: '20px', padding: '12px', background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '4px' }}>
-        <strong>⚠️ Setup Required:</strong> This extension requires a proxy server. Run <code>npm run dev</code> in the mp3 directory or deploy the Next.js app to Vercel.
+      <div style={{ marginBottom: '20px', padding: '12px', background: '#d1fae5', border: '1px solid #10b981', borderRadius: '4px' }}>
+        <strong>✅ YouTube works standalone!</strong> No server needed for YouTube videos.
+      </div>
+
+      <div style={{ marginBottom: '20px', padding: '12px', background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '4px', fontSize: '13px' }}>
+        <strong>Note:</strong> For other platforms (TikTok, Vimeo, etc.), you need to run <code>npm run dev</code> or deploy to Vercel.
       </div>
 
       <div style={{ marginBottom: '20px' }}>

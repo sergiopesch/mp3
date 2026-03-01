@@ -1,13 +1,11 @@
 /**
- * Cobalt API client for audio extraction
+ * Audio Extraction API
  *
- * IMPORTANT: This extension requires a proxy server to work!
- *
- * Setup Options:
- * 1. Run the Next.js app locally: `npm run dev` in the mp3 directory (http://localhost:3000/api/extract)
- * 2. Deploy the Next.js app to Vercel and update DEFAULT_API_URL below
- * 3. Configure a custom endpoint in extension settings
+ * YouTube: Works standalone, no server required!
+ * Other platforms: Requires proxy server (see README for setup)
  */
+
+import { extractYouTubeAudio, isYouTubeUrl } from './youtube';
 
 const DEFAULT_API_URL = 'http://localhost:3000/api/extract';
 
@@ -60,7 +58,14 @@ export async function extractAudio(
   }
 
   try {
-    // Get API endpoint from storage (user can configure it)
+    // Check if it's a YouTube URL - if so, extract directly (no server needed!)
+    if (isYouTubeUrl(trimmedUrl)) {
+      console.log('Detected YouTube URL, using standalone extractor');
+      return await extractYouTubeAudio(trimmedUrl);
+    }
+
+    // For other platforms, use the proxy API
+    console.log('Non-YouTube URL, using proxy API');
     const { apiEndpoint } = await chrome.storage.local.get({
       apiEndpoint: DEFAULT_API_URL
     });

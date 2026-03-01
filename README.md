@@ -17,40 +17,35 @@ NEW! Install the Chrome extension for seamless integration with video platforms:
 
 ### Installation
 
-**⚠️ Important:** The extension requires a proxy server to bypass Cobalt API authentication. You have two options:
+**✅ YouTube works standalone - no server required!**
 
-**Option 1: Run Locally (Recommended for Development)**
+**Quick Start:**
 ```bash
-# Terminal 1: Run the Next.js proxy server
-npm run dev
-
-# Terminal 2: Build and load the extension
 cd chrome-extension
 npm install
 npm run build
-```
-
-**Option 2: Deploy to Vercel (Recommended for Production)**
-```bash
-# Deploy the Next.js app
-vercel deploy
-
-# Update the API endpoint in extension settings to your deployed URL
-# Example: https://your-app.vercel.app/api/extract
 ```
 
 **Then load the extension:**
 1. Open Chrome/Brave and go to `chrome://extensions/` or `brave://extensions/`
 2. Enable "Developer mode" (top right toggle)
 3. Click "Load unpacked" and select the `chrome-extension/dist/` folder
-4. Go to extension settings and verify/update the API endpoint
+4. Done! Extract audio from any YouTube video 🎵
+
+**For other platforms (TikTok, Vimeo, etc.):**
+The extension requires a proxy server for non-YouTube platforms:
+
+- **Option 1 (Local):** Run `npm run dev` in the root directory
+- **Option 2 (Deployed):** Deploy to Vercel and configure the API endpoint in extension settings
 
 ### Features
 
+- **✨ Standalone YouTube support** - works without any server!
 - **One-click extraction** from any video page
-- **Auto-URL detection** when you open YouTube, Vimeo, etc.
+- **Auto-URL detection** when you open YouTube
 - **Download history** tracking
 - **Context menu** integration (right-click → Extract Audio)
+- **Beautiful modern UI** with gradient buttons and smooth animations
 - **Format/quality settings** (MP3/WAV/OGG, 128/256/320 kbps)
 - **Auto-download** option
 
