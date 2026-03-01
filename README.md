@@ -1,12 +1,48 @@
 # mp3
 
-A minimalistic web application that extracts high-quality audio from video URLs. Paste a link from YouTube, Vimeo, Twitter, TikTok, or 1000+ other platforms and download the audio as an MP3 file.
+Extract high-quality audio from 1000+ video platforms. Available as a **web app** and **Chrome extension**.
 
-Built with Next.js, React, and TypeScript. Powered by [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [ffmpeg](https://ffmpeg.org/) on the backend.
+- **Web App**: Paste URLs from YouTube, Vimeo, Twitter, TikTok, and more
+- **Chrome Extension**: One-click extraction from any video page with auto-detection
 
-## Features
+Built with Next.js, React, and TypeScript. Powered by the [Cobalt API](https://cobalt.tools/).
 
-- **Universal platform support** — works with YouTube, Vimeo, Twitter/X, TikTok, SoundCloud, and [1000+ other sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md) supported by yt-dlp
+## 🌐 Web App
+
+The web application provides a simple interface for extracting audio from video URLs.
+
+## 🔌 Chrome Extension
+
+NEW! Install the Chrome extension for seamless integration with video platforms:
+
+### Installation
+
+1. Download or build the extension from `chrome-extension/`
+2. Open Chrome and go to `chrome://extensions/`
+3. Enable "Developer mode"
+4. Click "Load unpacked" and select the `chrome-extension/dist/` folder
+
+### Features
+
+- **One-click extraction** from any video page
+- **Auto-URL detection** when you open YouTube, Vimeo, etc.
+- **Download history** tracking
+- **Context menu** integration (right-click → Extract Audio)
+- **Format/quality settings** (MP3/WAV/OGG, 128/256/320 kbps)
+- **Auto-download** option
+
+### Building the Extension
+
+```bash
+cd chrome-extension
+npm install
+npm run build
+# Extension will be built to dist/
+```
+
+## Features (Web App)
+
+- **Universal platform support** — works with YouTube, Vimeo, Twitter/X, TikTok, SoundCloud, and [1000+ other sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md)
 - **Best quality extraction** — downloads the highest quality audio and converts to MP3 at maximum bitrate (V0 VBR ~245 kbps)
 - **Embedded metadata** — preserves title, artist, album art, and other metadata from the source
 - **Real-time progress** — streaming progress updates via server-sent JSON lines so you see download and conversion status live
