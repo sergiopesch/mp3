@@ -3,13 +3,13 @@
  * Migrated from /workspace/group/mp3/src/app/api/extract/route.ts
  */
 
-const COBALT_API_URL = 'https://api.cobalt.tools/api/json';
+const COBALT_API_URL = 'https://api.cobalt.tools/';
 
 export interface CobaltRequest {
   url: string;
-  downloadMode: 'audio';
-  audioFormat: 'mp3' | 'wav' | 'ogg';
-  audioBitrate: '128' | '256' | '320';
+  downloadMode?: 'audio' | 'auto' | 'mute';
+  audioFormat?: 'best' | 'mp3' | 'wav' | 'ogg' | 'opus';
+  audioBitrate?: '320' | '256' | '128' | '96' | '64' | '8';
 }
 
 export interface CobaltSuccessResponse {
