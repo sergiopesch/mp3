@@ -26,75 +26,24 @@ export function FormatSelector({ settings, onUpdate }: FormatSelectorProps) {
           color: 'var(--text-secondary)',
         }}
       >
-        Audio Settings
+        Download Settings
       </h3>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {/* Format selector */}
-        <div>
-          <label
-            style={{
-              display: 'block',
-              fontSize: '12px',
-              color: 'var(--text-secondary)',
-              marginBottom: '6px',
-            }}
-          >
-            Format
-          </label>
-          <select
-            value={settings.audioFormat}
-            onChange={(e) => onUpdate({ audioFormat: e.target.value as Settings['audioFormat'] })}
-            style={{
-              width: '100%',
-              background: 'var(--bg)',
-              border: '1px solid var(--border)',
-              borderRadius: '8px',
-              padding: '8px 10px',
-              fontSize: '13px',
-              color: 'var(--text)',
-              cursor: 'pointer',
-            }}
-          >
-            <option value="mp3">MP3</option>
-            <option value="wav">WAV</option>
-            <option value="ogg">OGG</option>
-          </select>
+        <div
+          style={{
+            fontSize: '12px',
+            lineHeight: 1.5,
+            color: 'var(--text-secondary)',
+            background: 'var(--bg)',
+            border: '1px solid var(--border)',
+            borderRadius: '8px',
+            padding: '10px 12px',
+          }}
+        >
+          The self-hosted extractor currently produces MP3 files only. Auto-download remains configurable below.
         </div>
 
-        {/* Bitrate selector */}
-        <div>
-          <label
-            style={{
-              display: 'block',
-              fontSize: '12px',
-              color: 'var(--text-secondary)',
-              marginBottom: '6px',
-            }}
-          >
-            Quality
-          </label>
-          <select
-            value={settings.audioBitrate}
-            onChange={(e) => onUpdate({ audioBitrate: e.target.value as Settings['audioBitrate'] })}
-            style={{
-              width: '100%',
-              background: 'var(--bg)',
-              border: '1px solid var(--border)',
-              borderRadius: '8px',
-              padding: '8px 10px',
-              fontSize: '13px',
-              color: 'var(--text)',
-              cursor: 'pointer',
-            }}
-          >
-            <option value="128">128 kbps (Good)</option>
-            <option value="256">256 kbps (Better)</option>
-            <option value="320">320 kbps (Best)</option>
-          </select>
-        </div>
-
-        {/* Auto-download toggle */}
         <label
           style={{
             display: 'flex',

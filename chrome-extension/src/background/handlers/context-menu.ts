@@ -42,11 +42,7 @@ export function handleContextMenuClick(): void {
       const settings = await SettingsManager.getSettings();
 
       // Extract audio
-      const result = await extractAudio(
-        url,
-        settings.audioFormat,
-        settings.audioBitrate
-      );
+      const result = await extractAudio(url);
 
       // Handle error
       if ('error' in result) {

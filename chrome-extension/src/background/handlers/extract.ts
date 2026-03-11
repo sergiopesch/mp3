@@ -17,11 +17,7 @@ export async function handleExtractAudio(
   const settings = await SettingsManager.getSettings();
 
   // Extract audio using the self-hosted backend
-  const result = await extractAudio(
-    url,
-    settings.audioFormat,
-    settings.audioBitrate
-  );
+  const result = await extractAudio(url);
 
   // Handle error response
   if ('error' in result) {

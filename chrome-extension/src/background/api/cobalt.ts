@@ -27,11 +27,7 @@ function isValidUrl(urlString: string): boolean {
   }
 }
 
-export async function extractAudio(
-  url: string,
-  _audioFormat: 'mp3' | 'wav' | 'ogg' = 'mp3',
-  _audioBitrate: '128' | '256' | '320' = '320'
-): Promise<BackendResponse> {
+export async function extractAudio(url: string): Promise<BackendResponse> {
   const trimmedUrl = url.trim();
   if (!trimmedUrl) {
     return { error: 'URL is required' };

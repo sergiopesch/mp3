@@ -50,34 +50,8 @@ const OptionsApp: React.FC = () => {
         </small>
       </div>
 
-      <div style={{ marginBottom: '20px' }}>
-        <label style={{ display: 'block', marginBottom: '8px' }}>
-          Audio Format
-        </label>
-        <select
-          value={settings.audioFormat}
-          onChange={(e) => setSettings({ ...settings, audioFormat: e.target.value as any })}
-          style={{ width: '100%', padding: '8px' }}
-        >
-          <option value="mp3">MP3</option>
-          <option value="wav">WAV</option>
-          <option value="ogg">OGG</option>
-        </select>
-      </div>
-
-      <div style={{ marginBottom: '20px' }}>
-        <label style={{ display: 'block', marginBottom: '8px' }}>
-          Audio Bitrate
-        </label>
-        <select
-          value={settings.audioBitrate}
-          onChange={(e) => setSettings({ ...settings, audioBitrate: e.target.value as any })}
-          style={{ width: '100%', padding: '8px' }}
-        >
-          <option value="128">128 kbps</option>
-          <option value="256">256 kbps</option>
-          <option value="320">320 kbps</option>
-        </select>
+      <div style={{ marginBottom: '20px', padding: '12px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: '4px', fontSize: '13px' }}>
+        <strong>Current output:</strong> the self-hosted backend currently produces MP3 files only. Format and bitrate controls were removed so the extension reflects real behaviour.
       </div>
 
       <div style={{ marginBottom: '20px' }}>

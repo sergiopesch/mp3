@@ -1,6 +1,6 @@
-# MP3 Extractor - Chrome Extension
+# MP3 Extractor - Browser Extension
 
-A Chrome extension that extracts audio from YouTube videos and web pages. Download audio as MP3 directly from your browser.
+A browser extension build for extracting audio from YouTube videos and supported web pages. The current build targets Chrome/Brave directly and now includes a Firefox manifest variant for packaging.
 
 ## Features
 
@@ -25,11 +25,15 @@ A Chrome extension that extracts audio from YouTube videos and web pages. Downlo
    npm run build
    ```
 
-3. Load in Chrome:
-   - Open `chrome://extensions/`
-   - Enable "Developer mode" (top-right toggle)
+3. Load in Chrome or Brave:
+   - Open `chrome://extensions/` or `brave://extensions/`
+   - Enable "Developer mode"
    - Click "Load unpacked"
    - Select the `dist/` folder
+
+4. Firefox packaging:
+   - A Firefox-specific manifest is now included at `src/manifest/firefox-manifest.json`
+   - The codebase still needs a proper Firefox packaging/release pass before claiming production-ready Firefox support in the store
 
 ### Development
 
@@ -58,7 +62,7 @@ For non-YouTube platforms (TikTok, Vimeo, SoundCloud, etc.), the extension needs
 
 1. Set up and run the proxy server (see the parent project)
 2. Configure the API endpoint in the extension's Settings page
-3. Default endpoint: `http://localhost:3000/api/extract`
+3. Default endpoint: `https://mp3-sergiopeschs-projects.vercel.app/api/extract`
 
 ## Project Structure
 
@@ -114,9 +118,10 @@ chrome-extension/
 
 ## Known Limitations
 
+- **Upstream extraction service auth**: the current deployed `/api/extract` flow depends on an upstream Cobalt endpoint that is presently returning `error.api.auth.jwt.missing` until properly configured. That means end-to-end extraction is not yet reliable in production, regardless of browser.
 - **YouTube signature-ciphered streams**: Some YouTube videos use encrypted stream URLs that cannot be decoded without running YouTube's player JavaScript. In these cases, extraction will fail with "No audio stream found."
 - **YouTube bot detection**: The direct fetch fallback may be blocked by YouTube's bot detection. For best results, open the YouTube video in a tab before extracting.
-- **Non-YouTube platforms**: Require a running proxy server. Without it, only YouTube and direct MP3 links work.
+- **Firefox support**: a Firefox manifest variant now exists, but Firefox compatibility should be verified in a real add-on packaging pass before claiming full production support.
 - **Audio format**: YouTube provides audio in M4A/WebM format. The filename uses `.mp3` extension but the actual codec depends on what YouTube provides.
 
 ## Tech Stack

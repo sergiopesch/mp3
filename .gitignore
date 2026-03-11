@@ -3,6 +3,7 @@ node_modules/
 out/
 tmp/
 .venv/
+chrome-extension/dist/
 *.tgz
 .env
 .env.*
