@@ -4,9 +4,26 @@ import { useState, useRef, useCallback } from "react";
 
 type Status = "idle" | "extracting" | "done" | "error";
 
+type StreamMessage =
+  | { type: "progress"; message: string }
+  | {
+      type: "done";
+      data: {
+        id: string;
+        title: string;
+        duration: string;
+        filename: string;
+        downloadPath: string;
+      };
+    }
+  | { type: "error"; message: string };
+
 interface JobResult {
-  downloadUrl: string;
+  id: string;
+  title: string;
+  duration: string;
   filename: string;
+  downloadPath: string;
 }
 
 export default function Home() {
@@ -25,7 +42,7 @@ export default function Home() {
     }
 
     setStatus("extracting");
-    setProgress("Processing...");
+    setProgress("Preparing extractor...");
     setError("");
     setResult(null);
 
@@ -36,14 +53,38 @@ export default function Home() {
         body: JSON.stringify({ url: trimmed }),
       });
 
-      const data = await res.json();
-
-      if (!res.ok || data.error) {
-        throw new Error(data.error || "Extraction failed");
+      if (!res.ok || !res.body) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Extraction failed");
       }
 
-      setResult(data);
-      setStatus("done");
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+
+          const message = JSON.parse(line) as StreamMessage;
+
+          if (message.type === "progress") {
+            setProgress(message.message);
+          } else if (message.type === "done") {
+            setResult(message.data);
+            setStatus("done");
+          } else if (message.type === "error") {
+            throw new Error(message.message);
+          }
+        }
+      }
     } catch (e) {
       setStatus("error");
       setError(e instanceof Error ? e.message : "Something went wrong");
@@ -52,10 +93,7 @@ export default function Home() {
 
   const handleDownload = useCallback(() => {
     if (!result) return;
-    window.open(
-      `/api/download?url=${encodeURIComponent(result.downloadUrl)}&filename=${encodeURIComponent(result.filename)}`,
-      "_blank"
-    );
+    window.open(result.downloadPath, "_blank");
   }, [result]);
 
   const handleReset = useCallback(() => {
@@ -75,7 +113,6 @@ export default function Home() {
 
   return (
     <main className="min-h-screen flex flex-col">
-      {/* Header */}
       <header className="border-b border-[var(--border)] px-6 py-4">
         <div className="max-w-3xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -88,24 +125,21 @@ export default function Home() {
             </div>
             <span className="font-semibold text-sm tracking-tight">mp3</span>
           </div>
-          <span className="text-xs text-[var(--text-secondary)]">audio extractor</span>
+          <span className="text-xs text-[var(--text-secondary)]">self-hosted audio extractor</span>
         </div>
       </header>
 
-      {/* Main content */}
       <div className="flex-1 flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-xl">
-          {/* Title */}
           <div className="text-center mb-10">
             <h1 className="text-3xl font-bold tracking-tight mb-2">
               Extract audio from any video
             </h1>
             <p className="text-[var(--text-secondary)] text-sm">
-              Paste a URL. Get the audio in best quality. That&apos;s it.
+              Runs on your own backend with yt-dlp and ffmpeg. No public extraction API.
             </p>
           </div>
 
-          {/* Input area */}
           <div className="relative mb-4">
             <input
               ref={inputRef}
@@ -120,7 +154,6 @@ export default function Home() {
             />
           </div>
 
-          {/* Action button */}
           {status === "idle" && (
             <button
               onClick={handleExtract}
@@ -131,7 +164,6 @@ export default function Home() {
             </button>
           )}
 
-          {/* Extracting state */}
           {status === "extracting" && (
             <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-5">
               <div className="flex items-center gap-3 mb-3">
@@ -145,7 +177,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* Done state */}
           {status === "done" && result && (
             <div className="space-y-3">
               <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-5">
@@ -155,10 +186,10 @@ export default function Home() {
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{result.filename}</p>
-                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                      Ready to download
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">{result.title}</p>
+                    <p className="text-xs text-[var(--text-secondary)] mt-0.5 truncate">
+                      {result.filename} · {result.duration}
                     </p>
                   </div>
                 </div>
@@ -185,7 +216,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* Error state */}
           {status === "error" && (
             <div className="space-y-3">
               <div className="bg-red-950/30 border border-red-900/50 rounded-xl p-5">
@@ -208,35 +238,26 @@ export default function Home() {
             </div>
           )}
 
-          {/* Supported platforms */}
           {status === "idle" && (
             <div className="mt-8 text-center">
               <p className="text-[10px] uppercase tracking-widest text-[var(--accent-dim)] mb-3">
                 Supports
               </p>
-              <div className="flex items-center justify-center gap-4 text-xs text-[var(--text-secondary)]">
+              <div className="flex items-center justify-center gap-4 text-xs text-[var(--text-secondary)] flex-wrap">
                 <span>YouTube</span>
                 <span className="text-[var(--border)]">/</span>
                 <span>Vimeo</span>
                 <span className="text-[var(--border)]">/</span>
-                <span>Twitter</span>
-                <span className="text-[var(--border)]">/</span>
                 <span>TikTok</span>
                 <span className="text-[var(--border)]">/</span>
-                <span>1000+ more</span>
+                <span>X</span>
+                <span className="text-[var(--border)]">/</span>
+                <span>and more via yt-dlp</span>
               </div>
             </div>
           )}
         </div>
       </div>
-
-      {/* Footer */}
-      <footer className="border-t border-[var(--border)] px-6 py-4">
-        <div className="max-w-3xl mx-auto flex items-center justify-between text-xs text-[var(--accent-dim)]">
-          <span>Powered by cobalt</span>
-          <span>Best quality, always</span>
-        </div>
-      </footer>
     </main>
   );
 }

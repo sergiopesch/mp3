@@ -1,45 +1,44 @@
 import { NextRequest } from "next/server";
+import { createReadStream } from "node:fs";
+import { promises as fs } from "node:fs";
+import path from "node:path";
 
+export const runtime = "nodejs";
 export const maxDuration = 60;
 
+const TMP_DIR = path.join(process.cwd(), "tmp");
+
 export async function GET(req: NextRequest) {
-  const downloadUrl = req.nextUrl.searchParams.get("url");
+  const id = req.nextUrl.searchParams.get("id");
   const filename = req.nextUrl.searchParams.get("filename");
 
-  if (!downloadUrl || !filename) {
-    return Response.json({ error: "Missing url or filename" }, { status: 400 });
+  if (!id || !filename) {
+    return Response.json({ error: "Missing id or filename" }, { status: 400 });
   }
 
-  let parsed: URL;
-  try {
-    parsed = new URL(downloadUrl);
-  } catch {
-    return Response.json({ error: "Invalid URL" }, { status: 400 });
+  if ([id, filename].some((value) => value.includes("..") || value.includes("/") || value.includes("\\"))) {
+    return Response.json({ error: "Invalid parameters" }, { status: 400 });
   }
 
-  if (parsed.protocol !== "https:") {
-    return Response.json({ error: "Only HTTPS URLs are allowed" }, { status: 400 });
-  }
+  const filePath = path.join(TMP_DIR, id, filename);
 
   try {
-    const response = await fetch(downloadUrl);
-
-    if (!response.ok || !response.body) {
-      return Response.json({ error: "Download failed" }, { status: 502 });
+    const stat = await fs.stat(filePath);
+    if (!stat.isFile()) {
+      return Response.json({ error: "File not found" }, { status: 404 });
     }
 
-    const headers: Record<string, string> = {
-      "Content-Type": "audio/mpeg",
-      "Content-Disposition": `attachment; filename="${encodeURIComponent(filename)}"`,
-    };
+    const stream = createReadStream(filePath);
 
-    const contentLength = response.headers.get("content-length");
-    if (contentLength) {
-      headers["Content-Length"] = contentLength;
-    }
-
-    return new Response(response.body, { headers });
+    return new Response(stream as unknown as ReadableStream, {
+      headers: {
+        "Content-Type": "audio/mpeg",
+        "Content-Length": String(stat.size),
+        "Content-Disposition": `attachment; filename="${encodeURIComponent(filename)}"`,
+        "Cache-Control": "private, max-age=3600",
+      },
+    });
   } catch {
-    return Response.json({ error: "Download failed" }, { status: 502 });
+    return Response.json({ error: "File not found" }, { status: 404 });
   }
 }

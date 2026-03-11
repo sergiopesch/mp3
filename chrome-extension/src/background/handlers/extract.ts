@@ -16,7 +16,7 @@ export async function handleExtractAudio(
   // Get current settings
   const settings = await SettingsManager.getSettings();
 
-  // Extract audio using Cobalt API
+  // Extract audio using the self-hosted backend
   const result = await extractAudio(
     url,
     settings.audioFormat,

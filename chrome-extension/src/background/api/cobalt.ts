@@ -1,35 +1,23 @@
 /**
- * Audio Extraction API
+ * Backend extraction client for the self-hosted mp3 app.
  *
- * YouTube: Works standalone, no server required!
- * Other platforms: Requires proxy server (see README for setup)
+ * The browser extension now relies on the Next.js backend for durable extraction
+ * across supported platforms. The old public Cobalt dependency is gone.
  */
-
-import { extractYouTubeAudio, isYouTubeUrl } from './youtube';
 
 const DEFAULT_API_URL = 'http://localhost:3000/api/extract';
 
-export interface CobaltRequest {
-  url: string;
-  downloadMode?: 'audio' | 'auto' | 'mute';
-  audioFormat?: 'best' | 'mp3' | 'wav' | 'ogg' | 'opus';
-  audioBitrate?: '320' | '256' | '128' | '96' | '64' | '8';
-}
-
-export interface CobaltSuccessResponse {
+export interface ExtractResponse {
   downloadUrl: string;
   filename: string;
 }
 
-export interface CobaltErrorResponse {
+export interface ExtractErrorResponse {
   error: string;
 }
 
-export type CobaltResponse = CobaltSuccessResponse | CobaltErrorResponse;
+export type BackendResponse = ExtractResponse | ExtractErrorResponse;
 
-/**
- * Validate URL format
- */
 function isValidUrl(urlString: string): boolean {
   try {
     new URL(urlString);
@@ -39,15 +27,11 @@ function isValidUrl(urlString: string): boolean {
   }
 }
 
-/**
- * Extract audio from a URL using Cobalt API
- */
 export async function extractAudio(
   url: string,
-  audioFormat: 'mp3' | 'wav' | 'ogg' = 'mp3',
-  audioBitrate: '128' | '256' | '320' = '320'
-): Promise<CobaltResponse> {
-  // Validate URL
+  _audioFormat: 'mp3' | 'wav' | 'ogg' = 'mp3',
+  _audioBitrate: '128' | '256' | '320' = '320'
+): Promise<BackendResponse> {
   const trimmedUrl = url.trim();
   if (!trimmedUrl) {
     return { error: 'URL is required' };
@@ -58,83 +42,71 @@ export async function extractAudio(
   }
 
   try {
-    // Check if it's a YouTube URL - if so, extract directly (no server needed!)
-    if (isYouTubeUrl(trimmedUrl)) {
-      console.log('Detected YouTube URL, using standalone extractor');
-      return await extractYouTubeAudio(trimmedUrl);
-    }
-
-    // For other platforms, use the proxy API
-    console.log('Non-YouTube URL, using proxy API');
-    const { apiEndpoint } = await chrome.storage.local.get({
-      apiEndpoint: DEFAULT_API_URL
+    const { settings } = await chrome.storage.local.get({
+      settings: {
+        apiEndpoint: DEFAULT_API_URL,
+      },
     });
 
-    // Call proxy API endpoint (Next.js /api/extract route)
+    const apiEndpoint = settings?.apiEndpoint || DEFAULT_API_URL;
     const response = await fetch(apiEndpoint, {
       method: 'POST',
       headers: {
-        'Accept': 'application/json',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        url: trimmedUrl,
-      }),
+      body: JSON.stringify({ url: trimmedUrl }),
     });
 
-    if (!response.ok) {
-      let errorMsg = 'Processing service returned an error';
-      try {
-        const data = await response.json();
-        if (data.error?.code) {
-          errorMsg = data.error.code;
+    if (!response.ok || !response.body) {
+      const data = await response.json().catch(() => null);
+      return { error: data?.error || 'Extraction failed' };
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let finalResult: ExtractResponse | null = null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+
+        const message = JSON.parse(line);
+        if (message.type === 'error') {
+          return { error: message.message || 'Extraction failed' };
         }
-      } catch {
-        // Ignore JSON parse errors
-      }
-      return { error: errorMsg };
-    }
 
-    const data = await response.json();
-
-    // Handle error status
-    if (data.status === 'error') {
-      return {
-        error: data.error?.code || 'Failed to process this URL'
-      };
-    }
-
-    // Handle tunnel/redirect status (direct download URL)
-    if (data.status === 'tunnel' || data.status === 'redirect') {
-      return {
-        downloadUrl: data.url,
-        filename: data.filename || 'audio.mp3',
-      };
-    }
-
-    // Handle picker status (multiple options available)
-    if (data.status === 'picker') {
-      // Try to get audio directly
-      if (data.audio) {
-        return {
-          downloadUrl: data.audio,
-          filename: data.audioFilename || 'audio.mp3',
-        };
-      }
-
-      // Fallback to first picker option
-      const first = data.picker?.[0];
-      if (first?.url) {
-        return {
-          downloadUrl: first.url,
-          filename: 'audio.mp3',
-        };
+        if (message.type === 'done' && message.data) {
+          finalResult = {
+            downloadUrl: buildAbsoluteDownloadUrl(apiEndpoint, message.data.downloadPath),
+            filename: message.data.filename,
+          };
+        }
       }
     }
 
-    return { error: 'Could not extract audio from this URL' };
+    if (!finalResult) {
+      return { error: 'Extraction finished without a download result' };
+    }
+
+    return finalResult;
   } catch (error) {
-    console.error('Cobalt API error:', error);
-    return { error: 'Failed to connect to processing service' };
+    console.error('Backend extraction error:', error);
+    return { error: 'Failed to connect to extractor backend' };
   }
+}
+
+function buildAbsoluteDownloadUrl(apiEndpoint: string, downloadPath: string): string {
+  if (/^https?:\/\//i.test(downloadPath)) {
+    return downloadPath;
+  }
+
+  return new URL(downloadPath, apiEndpoint).toString();
 }
