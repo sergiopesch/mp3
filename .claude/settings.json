@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Write",
+      "Edit",
+      "Glob",
+      "Grep",
+      "Bash(npm run dev)",
+      "Bash(npm run build)",
+      "Bash(npm run start)",
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(cd chrome-extension && npm install)",
+      "Bash(cd chrome-extension && npm run build)",
+      "Bash(cd chrome-extension && npm run dev)",
+      "Bash(npx tsc --noEmit)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(**/*.pem)",
+      "Read(**/*key*)",
+      "Read(**/*secret*)",
+      "Read(**/*credential*)",
+      "Bash(rm -rf *)",
+      "Bash(rm -rf /)",
+      "Bash(rm -rf tmp)",
+      "Bash(rm -rf .next)",
+      "Bash(rm -rf node_modules)",
+      "Bash(curl *)",
+      "Bash(wget *)",
+      "Bash(pip install *)",
+      "Bash(pip3 install *)",
+      "Bash(sudo *)",
+      "Bash(npm install -g *)",
+      "Bash(npx -y *)"
+    ]
+  }
+}
