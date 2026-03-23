@@ -88,10 +88,7 @@ The extract endpoint uses `ReadableStream` to stream progress updates as newline
 
 ### Temporary file storage
 
-Extracted files are stored in `tmp/{jobId}/` at the project root. There is currently no automatic cleanup mechanism. If adding one, consider:
-- A cron job or scheduled task
-- Cleanup on download completion
-- TTL-based expiration
+Extracted files are stored in `tmp/{jobId}/` at the project root. Old jobs are cleaned up opportunistically when new extraction requests arrive, based on `EXTRACT_RETENTION_HOURS` (default 24h). Failed extractions clean up their job directory immediately.
 
 ### Single-component UI
 
@@ -121,10 +118,10 @@ There is no test suite yet. If adding tests:
 
 The extraction logic is in `src/app/api/extract/route.ts`. Key areas:
 
-- **Lines 57-62**: Phase 1 — yt-dlp metadata retrieval arguments
-- **Lines 96-107**: Phase 2 — yt-dlp download and conversion arguments
-- **Lines 120-121**: Progress percentage regex parsing
-- **Lines 129-131**: Conversion detection regex parsing
+- `spawnAndCapture()` — Phase 1: yt-dlp metadata retrieval (title + duration)
+- Extraction `spawn()` call — Phase 2: yt-dlp download and conversion with `--extract-audio --audio-format mp3`
+- Progress parsing — regex matches on `download:NN.N%` from `--progress-template` output
+- Conversion detection — looks for `[ExtractAudio]` in stdout
 
 ### Changing the design
 

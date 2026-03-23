@@ -13,15 +13,9 @@ export async function handleExtractAudio(
 ): Promise<ExtractAudioResponse> {
   const { url } = message;
 
-  // Get current settings
-  const settings = await SettingsManager.getSettings();
-
-  // Extract audio using the self-hosted backend
   const result = await extractAudio(url);
 
-  // Handle error response
   if ('error' in result) {
-    // Add to history with error status
     await HistoryManager.addHistoryItem({
       url,
       filename: '',
@@ -36,7 +30,6 @@ export async function handleExtractAudio(
     };
   }
 
-  // Add to history with success status
   await HistoryManager.addHistoryItem({
     url,
     filename: result.filename,
@@ -44,7 +37,7 @@ export async function handleExtractAudio(
     status: 'success',
   });
 
-  // Auto-download if enabled
+  const settings = await SettingsManager.getSettings();
   if (settings.autoDownload) {
     try {
       await chrome.downloads.download({
@@ -54,7 +47,6 @@ export async function handleExtractAudio(
       });
     } catch (error) {
       console.error('Auto-download failed:', error);
-      // Don't fail the extraction if download fails
     }
   }
 

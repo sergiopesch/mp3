@@ -137,7 +137,6 @@ export function HistoryList({ history, loading, onClear }: HistoryListProps) {
 }
 
 function HistoryItemComponent({ item }: { item: HistoryItem }) {
-  const date = new Date(item.timestamp);
   const timeAgo = getTimeAgo(item.timestamp);
 
   return (

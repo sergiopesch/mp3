@@ -66,19 +66,22 @@ That restores live progress instead of a single blocking request/response cycle.
 
 ## Extension architecture
 
-The extension no longer depends on a public extraction API.
+The extension uses the same self-hosted backend for all extraction.
 
-It now:
-- sends the source URL to your configured `/api/extract`
-- reads the NDJSON stream in the background worker
-- converts the final relative `downloadPath` into an absolute download URL
-- downloads from your own backend
+Components:
+- `chrome-extension/src/background/api/cobalt.ts` — API client that calls `/api/extract` and reads the NDJSON stream
+- `chrome-extension/src/background/handlers/extract.ts` — message handler for popup-initiated extractions
+- `chrome-extension/src/background/handlers/context-menu.ts` — right-click "Extract Audio" context menu
+- `chrome-extension/src/background/handlers/download.ts` — triggers `chrome.downloads` for manual download
+- `chrome-extension/src/content/content-script.ts` — detects MP3 links on the current page
+- `chrome-extension/src/popup/` — React popup UI with extract form, progress, history
+- `chrome-extension/src/options/` — options page for configuring the backend endpoint
 
-Default local endpoint:
-
-```text
-http://localhost:3000/api/extract
-```
+Flow:
+- sends the source URL to the configured `apiEndpoint` (default `http://localhost:3000/api/extract`)
+- reads the NDJSON stream in the background service worker
+- converts the relative `downloadPath` from the `done` message into an absolute download URL
+- downloads from the backend via `chrome.downloads`
 
 ## Configuration
 
@@ -103,6 +106,5 @@ Old jobs are not deleted immediately after download. They are retained for a con
 ## Known limits
 
 - Output is currently always MP3.
-- Extension UI still exposes format/bitrate settings that are not yet honoured server-side.
 - Some providers may require cookies or site-specific handling beyond the basic local setup.
 - This design is suitable for a self-hosted machine or VPS, not a serverless edge environment without local process execution.

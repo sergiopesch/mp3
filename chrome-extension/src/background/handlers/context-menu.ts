@@ -38,13 +38,8 @@ export function handleContextMenuClick(): void {
     }
 
     try {
-      // Get settings
-      const settings = await SettingsManager.getSettings();
-
-      // Extract audio
       const result = await extractAudio(url);
 
-      // Handle error
       if ('error' in result) {
         await HistoryManager.addHistoryItem({
           url,
@@ -54,7 +49,6 @@ export function handleContextMenuClick(): void {
           error: result.error,
         });
 
-        // Show error notification
         chrome.notifications.create({
           type: 'basic',
           iconUrl: chrome.runtime.getURL('icons/icon48.png'),
@@ -64,7 +58,6 @@ export function handleContextMenuClick(): void {
         return;
       }
 
-      // Add to history
       await HistoryManager.addHistoryItem({
         url,
         filename: result.filename,
@@ -72,7 +65,7 @@ export function handleContextMenuClick(): void {
         status: 'success',
       });
 
-      // Auto-download if enabled
+      const settings = await SettingsManager.getSettings();
       if (settings.autoDownload) {
         await chrome.downloads.download({
           url: result.downloadUrl,
@@ -80,7 +73,6 @@ export function handleContextMenuClick(): void {
           saveAs: false,
         });
 
-        // Show success notification
         chrome.notifications.create({
           type: 'basic',
           iconUrl: chrome.runtime.getURL('icons/icon48.png'),
@@ -88,7 +80,6 @@ export function handleContextMenuClick(): void {
           message: `Downloading ${result.filename}`,
         });
       } else {
-        // Show notification with option to download
         chrome.notifications.create({
           type: 'basic',
           iconUrl: chrome.runtime.getURL('icons/icon48.png'),

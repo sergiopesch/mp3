@@ -21,15 +21,21 @@ type DoneMessage = {
 
 type StreamMessage = ProgressMessage | ErrorMessage | DoneMessage;
 
-const ROOT_DIR = process.cwd();
-const TMP_DIR = path.join(ROOT_DIR, "tmp");
-const VENV_BIN_DIR = path.join(ROOT_DIR, ".venv", "bin");
-const USER_YT_DLP_BIN = path.join(process.env.HOME || "/home/sergiopesch", ".local", "share", "mp3", "yt-dlp-venv", "bin");
-const DEFAULT_YT_DLP_PATH = path.join(USER_YT_DLP_BIN, "yt-dlp");
+const TMP_DIR = path.join(process.cwd(), "tmp");
+const DEFAULT_YT_DLP_PATH = path.join(
+  process.env.HOME || "/root",
+  ".local", "share", "mp3", "yt-dlp-venv", "bin", "yt-dlp"
+);
 const DEFAULT_FFMPEG_PATH = "/usr/bin/ffmpeg";
 const YT_DLP_BIN = process.env.YT_DLP_BIN || DEFAULT_YT_DLP_PATH;
 const FFMPEG_BIN = process.env.FFMPEG_BIN || DEFAULT_FFMPEG_PATH;
 const JOB_TTL_MS = Number(process.env.EXTRACT_RETENTION_HOURS || "24") * 60 * 60 * 1000;
+
+const SPAWN_ENV = {
+  ...process.env,
+  PATH: `${path.dirname(YT_DLP_BIN)}:${process.env.PATH || ""}`,
+  FFMPEG_LOCATION: FFMPEG_BIN,
+};
 
 function send(controller: ReadableStreamDefaultController<Uint8Array>, payload: StreamMessage) {
   controller.enqueue(new TextEncoder().encode(`${JSON.stringify(payload)}\n`));
@@ -96,13 +102,7 @@ async function cleanupOldJobs() {
 
 function spawnAndCapture(args: string[]) {
   return new Promise<{ stdout: string; stderr: string; code: number | null }>((resolve, reject) => {
-    const child = spawn(YT_DLP_BIN, args, {
-      env: {
-        ...process.env,
-        PATH: `${path.dirname(YT_DLP_BIN)}:${VENV_BIN_DIR}:${process.env.PATH || ""}`,
-        FFMPEG_LOCATION: FFMPEG_BIN,
-      },
-    });
+    const child = spawn(YT_DLP_BIN, args, { env: SPAWN_ENV });
 
     let stdout = "";
     let stderr = "";
@@ -121,23 +121,25 @@ function spawnAndCapture(args: string[]) {
 }
 
 export async function POST(req: NextRequest) {
-  let url: string | undefined;
+  let rawUrl: string | undefined;
   try {
     const body = await req.json();
-    url = typeof body?.url === "string" ? body.url.trim() : undefined;
+    rawUrl = typeof body?.url === "string" ? body.url.trim() : undefined;
   } catch {
     return Response.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  if (!url) {
+  if (!rawUrl) {
     return Response.json({ error: "URL is required" }, { status: 400 });
   }
 
   try {
-    new URL(url);
+    new URL(rawUrl);
   } catch {
     return Response.json({ error: "Invalid URL" }, { status: 400 });
   }
+
+  const url = rawUrl;
 
   try {
     await ensureBinaries();
@@ -197,7 +199,7 @@ export async function POST(req: NextRequest) {
           "%(title)s",
           "--print",
           "%(duration)s",
-          url!,
+          url,
         ]);
 
         if (info.code !== 0) {
@@ -233,15 +235,9 @@ export async function POST(req: NextRequest) {
             "download:%(progress._percent_str)s",
             "--output",
             outputTemplate,
-            url!,
+            url,
           ],
-          {
-            env: {
-              ...process.env,
-              PATH: `${path.dirname(YT_DLP_BIN)}:${VENV_BIN_DIR}:${process.env.PATH || ""}`,
-              FFMPEG_LOCATION: FFMPEG_BIN,
-            },
-          }
+          { env: SPAWN_ENV }
         );
 
         const child = extractionChild;

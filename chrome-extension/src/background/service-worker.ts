@@ -43,16 +43,6 @@ router.register('CLEAR_HISTORY', async (_message: ClearHistoryRequest) => {
   return { success: true };
 });
 
-// Handle MP3s detected by the content script (no-op, just acknowledge)
-router.register('MP3S_DETECTED', async (_message: any) => {
-  return { success: true };
-});
-
-// Handle YouTube data extracted by the content script
-router.register('YOUTUBE_PLAYER_DATA', async (_message: any) => {
-  return { success: true };
-});
-
 // Start listening for messages
 router.listen();
 

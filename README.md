@@ -14,7 +14,7 @@ The old dependency on the public Cobalt API has been removed. Extraction now run
 - **Streaming progress is back**: the web app consumes newline-delimited JSON progress events from the server.
 - **Downloads are served locally**: extracted files live under `tmp/<job-id>/` and are downloaded via `GET /api/download`.
 - **Extension aligned to backend**: the extension now expects your own `/api/extract` endpoint instead of a public third-party API.
-- **Project-local yt-dlp supported**: this repo can use `.venv/bin/yt-dlp`, which avoids mutating the system Python install.
+- **User-level yt-dlp supported**: defaults to `~/.local/share/mp3/yt-dlp-venv/bin/yt-dlp`, which avoids mutating the system Python install.
 
 ## Requirements
 
@@ -139,5 +139,5 @@ Old job directories are cleaned up opportunistically when new extraction request
 ## Notes
 
 - This app now assumes a **Node.js runtime**, not an edge runtime.
-- The backend currently always outputs MP3, even though some extension UI settings still expose format/bitrate selectors. Those can be treated as future UI debt unless expanded server-side.
+- The backend currently always outputs MP3.
 - Some sites may still fail if they require cookies, login state, or site-specific extractor workarounds. The core architecture is now durable because it is not pinned to a public API that can revoke access.
