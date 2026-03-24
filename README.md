@@ -1,148 +1,145 @@
-# mp3
+# MP3 Extractor
 
-Self-hosted audio extraction from video URLs, powered by your own Next.js backend with `yt-dlp` and `ffmpeg`.
+Download audio from YouTube, TikTok, Vimeo, SoundCloud, and hundreds of other sites — as MP3 files.
 
-## Ways to use it
+Runs entirely on your computer. No accounts, no third-party services, no rate limits.
 
-### 1. Web app
+Works as a **browser extension** (Chrome / Brave) or a **web app** at `localhost:3000`.
 
-Open `http://localhost:3000`, paste a video URL, and download the extracted MP3.
+## Quick Start
 
-### 2. Chrome extension
+### What you need first
 
-Install the browser extension to extract audio from any tab — via the popup, right-click context menu, or auto-detected MP3 links. See [chrome-extension/README.md](chrome-extension/README.md) for build and install steps.
+- **Linux** (Ubuntu, Fedora, Arch, etc.)
+- **Node.js 18+** — [install here](https://nodejs.org)
+- **Python 3** — usually pre-installed on Linux
+- **ffmpeg** — install with `sudo apt install ffmpeg`
 
-### 3. Brave extension
-
-The same extension works in Brave. Load it from `brave://extensions/` instead of `chrome://extensions/`.
-
-All three options use the same self-hosted backend. No third-party APIs, no accounts, no rate limits.
-
-## Requirements
-
-- Node.js 18+
-- `ffmpeg` available on the machine
-- `yt-dlp` available either:
-  - in a dedicated user-level virtualenv, or
-  - via the `YT_DLP_BIN` environment variable
-
-## Local setup
-
-### 1. Install app dependencies
+### Step 1: Clone and set up
 
 ```bash
-npm install
+git clone https://github.com/sergiopesch/mp3.git
+cd mp3
+./setup.sh
 ```
 
-### 2. Install yt-dlp
+This installs yt-dlp, builds the backend and extension, and starts the server.
 
-A user-level Python virtualenv avoids system package conflicts:
+### Step 2: Load the extension
+
+1. Open your browser's extensions page:
+   - **Chrome**: type `chrome://extensions` in the address bar
+   - **Brave**: type `brave://extensions` in the address bar
+2. Turn on **Developer mode** (toggle in the top-right corner)
+3. Click **Load unpacked**
+4. Select the folder: `mp3/chrome-extension/dist/`
+5. Copy the **extension ID** shown under the extension name
+   (looks like: `abcdefghijklmnopqrstuvwxyzabcdef`)
+
+### Step 3: Connect the extension
+
+Go back to your terminal and run:
 
 ```bash
-mkdir -p ~/.local/share/mp3
-python3 -m venv ~/.local/share/mp3/yt-dlp-venv
-. ~/.local/share/mp3/yt-dlp-venv/bin/activate
-pip install yt-dlp
+./setup.sh <paste-your-extension-id>
 ```
 
-### 3. Verify binaries
+### Done!
+
+Click the MP3 Extractor icon in your browser toolbar, paste a video URL, and hit **Extract Audio**. The MP3 downloads automatically.
+
+You can also **right-click any link** on a page and select **Extract Audio**.
+
+The backend runs in the background — no terminal needed after setup.
+
+## How it works
+
+1. You give it a video URL
+2. The backend (running on your machine) uses `yt-dlp` to grab the audio
+3. `ffmpeg` converts it to MP3
+4. The file downloads to your computer
+
+Everything stays local. The audio is extracted on your machine and saved to your Downloads folder.
+
+## Supported sites
+
+Anything that [yt-dlp supports](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md) — including:
+
+- YouTube
+- TikTok
+- Vimeo
+- SoundCloud
+- Twitter/X
+- Instagram
+- Reddit
+- and hundreds more
+
+## Web app
+
+You can also use the web interface directly at [http://localhost:3000](http://localhost:3000) — paste a URL and download the MP3.
+
+## Troubleshooting
+
+**"Backend is offline" in the extension popup**
+
+The server isn't running. Click **Start Backend** in the popup, or run:
+```bash
+systemctl --user start mp3
+```
+
+**"Extractor dependencies are missing"**
+
+yt-dlp or ffmpeg isn't installed. Re-run `./setup.sh` to fix it.
+
+**Extension not showing in toolbar**
+
+Click the puzzle piece icon in the toolbar and pin MP3 Extractor.
+
+**Port 3000 already in use**
+
+Another app is using port 3000. Stop it, or edit `~/.config/systemd/user/mp3.service` to change the port.
+
+## Uninstall
 
 ```bash
-~/.local/share/mp3/yt-dlp-venv/bin/yt-dlp --version
-ffmpeg -version
+# Stop and remove the background service
+systemctl --user stop mp3
+systemctl --user disable mp3
+rm ~/.config/systemd/user/mp3.service
+
+# Remove native messaging
+rm -f ~/.config/google-chrome/NativeMessagingHosts/com.mp3.extractor.json
+rm -f ~/.config/BraveSoftware/Brave-Browser/NativeMessagingHosts/com.mp3.extractor.json
+rm -f ~/.config/chromium/NativeMessagingHosts/com.mp3.extractor.json
+
+# Remove yt-dlp
+rm -rf ~/.local/share/mp3
+
+# Remove the project
+cd .. && rm -rf mp3
 ```
 
-### 4. Optional environment config
+## Advanced
+
+### Environment variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `YT_DLP_BIN` | `~/.local/share/mp3/yt-dlp-venv/bin/yt-dlp` | Path to yt-dlp |
+| `FFMPEG_BIN` | `/usr/bin/ffmpeg` | Path to ffmpeg |
+| `EXTRACT_RETENTION_HOURS` | `24` | Hours to keep extracted files before cleanup |
+
+### Manual backend control
 
 ```bash
-cp .env.example .env.local
+systemctl --user start mp3     # Start the backend
+systemctl --user stop mp3      # Stop the backend
+systemctl --user status mp3    # Check if it's running
 ```
 
-Available settings:
-- `YT_DLP_BIN` — absolute path to `yt-dlp`
-- `FFMPEG_BIN` — absolute path to `ffmpeg`
-- `EXTRACT_RETENTION_HOURS` — how long completed downloads stay in `tmp/`
-
-### 5. Run the web app
+### Build from source
 
 ```bash
-npm run dev
+npm install && npm run build                          # Backend
+cd chrome-extension && npm install && npm run build   # Extension
 ```
-
-Open `http://localhost:3000`.
-
-## Quick install (extension + auto-launch)
-
-The install script builds everything and sets up the backend to launch automatically when you use the extension:
-
-```bash
-# 1. Install yt-dlp (see above) and ffmpeg
-
-# 2. Build and load the extension first
-cd chrome-extension && npm install && npm run build && cd ..
-
-# 3. Load chrome-extension/dist/ as unpacked extension in Chrome or Brave
-#    (chrome://extensions or brave://extensions -> Developer mode -> Load unpacked)
-
-# 4. Copy the extension ID from the extensions page, then run:
-./scripts/install.sh <your-extension-id>
-```
-
-After this, the backend starts on demand when you extract audio — no manual terminal needed.
-
-## Manual extension setup
-
-If you prefer to run the backend yourself:
-
-```bash
-cd chrome-extension
-npm install
-npm run build
-```
-
-Load `chrome-extension/dist/` as an unpacked extension:
-
-| Browser | URL |
-|---|---|
-| Chrome | `chrome://extensions/` |
-| Brave | `brave://extensions/` |
-
-Enable **Developer mode**, click **Load unpacked**, and select the `dist/` folder.
-
-Start the backend in a terminal (`npm run dev` or `npm start`) before using the extension.
-
-By default the extension points to `http://localhost:3000/api/extract`. If you deploy the backend elsewhere, open the extension settings and update the endpoint.
-
-## How extraction works
-
-1. `POST /api/extract` validates the URL and checks local binaries.
-2. The server runs `yt-dlp` for metadata (title + duration).
-3. A second `yt-dlp` pass extracts and converts audio to MP3.
-4. Progress is streamed back as newline-delimited JSON.
-5. The client downloads the file via `GET /api/download?id=...&filename=...`.
-
-## Verification
-
-```bash
-npm run build
-cd chrome-extension && npm run build
-```
-
-Live extraction test against a running local server:
-
-```bash
-curl -X POST http://localhost:3000/api/extract \
-  -H "Content-Type: application/json" \
-  -d '{"url":"https://www.youtube.com/watch?v=dQw4w9WgXcQ"}' \
-  --no-buffer
-```
-
-## Storage and cleanup
-
-Extracted files are stored under `tmp/<job-id>/<filename>.mp3`. Old job directories are cleaned up when new extraction requests arrive, controlled by `EXTRACT_RETENTION_HOURS` (default 24h).
-
-## Notes
-
-- This app requires a **Node.js runtime** — it cannot run on serverless/edge platforms (no local binaries).
-- Output is always MP3.
-- Some sites may require cookies or site-specific workarounds. The architecture is durable because it runs your own tooling, not a third-party API.
