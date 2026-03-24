@@ -1,12 +1,16 @@
 import { useState, useCallback } from 'react';
 import { sendMessage } from '../../shared/messaging/send';
-import type { ExtractAudioResponse } from '../../shared/types/messages';
 
-export type ExtractStatus = 'idle' | 'extracting' | 'done' | 'error';
+export type ExtractStatus = 'idle' | 'loading-meta' | 'preview' | 'extracting' | 'done' | 'error';
 
 interface ExtractResult {
   downloadUrl: string;
   filename: string;
+}
+
+interface Metadata {
+  title: string;
+  durationSeconds: number;
 }
 
 export function useExtract() {
@@ -14,6 +18,38 @@ export function useExtract() {
   const [progress, setProgress] = useState('');
   const [result, setResult] = useState<ExtractResult | null>(null);
   const [error, setError] = useState('');
+  const [metadata, setMetadata] = useState<Metadata | null>(null);
+  const [rangeStart, setRangeStart] = useState(0);
+  const [rangeEnd, setRangeEnd] = useState(0);
+
+  const fetchInfo = useCallback(async (url: string) => {
+    setStatus('loading-meta');
+    setError('');
+    setMetadata(null);
+
+    try {
+      const response = await sendMessage({
+        type: 'FETCH_METADATA',
+        url: url.trim(),
+      });
+
+      if (!response.success || response.error) {
+        throw new Error(response.error || 'Failed to fetch info');
+      }
+
+      const meta = {
+        title: response.title || 'Audio',
+        durationSeconds: response.durationSeconds || 0,
+      };
+      setMetadata(meta);
+      setRangeStart(0);
+      setRangeEnd(meta.durationSeconds);
+      setStatus('preview');
+    } catch (e) {
+      setStatus('error');
+      setError(e instanceof Error ? e.message : 'Something went wrong');
+    }
+  }, []);
 
   const extract = useCallback(async (url: string) => {
     setStatus('extracting');
@@ -21,11 +57,24 @@ export function useExtract() {
     setError('');
     setResult(null);
 
+    const isFullClip = metadata && rangeStart === 0 && rangeEnd === metadata.durationSeconds;
+    const message: {
+      type: 'EXTRACT_AUDIO';
+      url: string;
+      startTime?: number;
+      endTime?: number;
+    } = {
+      type: 'EXTRACT_AUDIO',
+      url: url.trim(),
+    };
+
+    if (!isFullClip) {
+      message.startTime = rangeStart;
+      message.endTime = rangeEnd;
+    }
+
     try {
-      const response = await sendMessage({
-        type: 'EXTRACT_AUDIO',
-        url: url.trim(),
-      });
+      const response = await sendMessage(message);
 
       if (!response.success || response.error) {
         throw new Error(response.error || 'Extraction failed');
@@ -44,13 +93,16 @@ export function useExtract() {
       setStatus('error');
       setError(e instanceof Error ? e.message : 'Something went wrong');
     }
-  }, []);
+  }, [metadata, rangeStart, rangeEnd]);
 
   const reset = useCallback(() => {
     setStatus('idle');
     setProgress('');
     setResult(null);
     setError('');
+    setMetadata(null);
+    setRangeStart(0);
+    setRangeEnd(0);
   }, []);
 
   const download = useCallback(async () => {
@@ -72,6 +124,12 @@ export function useExtract() {
     progress,
     result,
     error,
+    metadata,
+    rangeStart,
+    rangeEnd,
+    setRangeStart,
+    setRangeEnd,
+    fetchInfo,
     extract,
     reset,
     download,

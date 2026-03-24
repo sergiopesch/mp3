@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import ExtractForm from './components/ExtractForm';
+import ExtractForm, { getUrlFromForm } from './components/ExtractForm';
 import { HistoryList } from './components/HistoryList';
 import { StatusMessage } from './components/StatusMessage';
 import { ProgressBar } from './components/ProgressBar';
+import { RangePreview } from './components/RangePreview';
 import { useExtract } from './hooks/useExtract';
 import { useHistory } from './hooks/useHistory';
 import { sendMessage } from '../shared/messaging/send';
@@ -14,7 +15,11 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('extract');
   const [backendStatus, setBackendStatus] = useState<BackendStatus>('checking');
   const [backendError, setBackendError] = useState('');
-  const { extract, status, progress, result, error, reset, download } = useExtract();
+  const [currentUrl, setCurrentUrl] = useState('');
+  const {
+    fetchInfo, extract, status, progress, result, error, reset, download,
+    metadata, rangeStart, rangeEnd, setRangeStart, setRangeEnd,
+  } = useExtract();
   const { history, loading, refresh, clearHistory } = useHistory();
 
   const checkBackend = useCallback(async () => {
@@ -44,12 +49,25 @@ export default function App() {
     }
   }, []);
 
-  // Check backend status when popup opens
+  const handleGetInfo = useCallback(async (url: string) => {
+    setCurrentUrl(url);
+    await fetchInfo(url);
+  }, [fetchInfo]);
+
+  const handleExtract = useCallback(async () => {
+    if (!currentUrl) return;
+    await extract(currentUrl);
+  }, [currentUrl, extract]);
+
+  const handleReset = useCallback(() => {
+    setCurrentUrl('');
+    reset();
+  }, [reset]);
+
   useEffect(() => {
     checkBackend();
   }, [checkBackend]);
 
-  // Refresh history when switching to history tab
   useEffect(() => {
     if (activeTab === 'history') {
       refresh();
@@ -175,7 +193,22 @@ export default function App() {
             {activeTab === 'extract' ? (
               <>
                 {status === 'idle' && (
-                  <ExtractForm onExtract={extract} loading={false} />
+                  <ExtractForm onGetInfo={handleGetInfo} loading={false} />
+                )}
+                {status === 'loading-meta' && (
+                  <ExtractForm onGetInfo={handleGetInfo} loading={true} />
+                )}
+                {status === 'preview' && metadata && (
+                  <RangePreview
+                    title={metadata.title}
+                    durationSeconds={metadata.durationSeconds}
+                    rangeStart={rangeStart}
+                    rangeEnd={rangeEnd}
+                    onRangeStartChange={setRangeStart}
+                    onRangeEndChange={setRangeEnd}
+                    onExtract={handleExtract}
+                    onReset={handleReset}
+                  />
                 )}
                 {status === 'extracting' && (
                   <ProgressBar message={progress || 'Processing...'} />
@@ -185,14 +218,14 @@ export default function App() {
                     type="success"
                     filename={result.filename}
                     onDownload={download}
-                    onReset={reset}
+                    onReset={handleReset}
                   />
                 )}
                 {status === 'error' && (
                   <StatusMessage
                     type="error"
                     message={error}
-                    onReset={reset}
+                    onReset={handleReset}
                   />
                 )}
               </>

@@ -5,6 +5,7 @@
 export type MessageType =
   | 'EXTRACT_AUDIO'
   | 'DOWNLOAD_AUDIO'
+  | 'FETCH_METADATA'
   | 'GET_HISTORY'
   | 'GET_SETTINGS'
   | 'UPDATE_SETTINGS'
@@ -15,6 +16,20 @@ export type MessageType =
 export interface ExtractAudioRequest {
   type: 'EXTRACT_AUDIO';
   url: string;
+  startTime?: number;
+  endTime?: number;
+}
+
+export interface FetchMetadataRequest {
+  type: 'FETCH_METADATA';
+  url: string;
+}
+
+export interface FetchMetadataResponse {
+  success: boolean;
+  title?: string;
+  durationSeconds?: number;
+  error?: string;
 }
 
 export interface ExtractAudioResponse {
@@ -89,6 +104,7 @@ export interface StartBackendResponse {
 export type Message =
   | ExtractAudioRequest
   | DownloadAudioRequest
+  | FetchMetadataRequest
   | GetHistoryRequest
   | GetSettingsRequest
   | UpdateSettingsRequest
@@ -99,6 +115,7 @@ export type Message =
 export type MessageResponse<T extends Message> =
   T extends ExtractAudioRequest ? ExtractAudioResponse :
   T extends DownloadAudioRequest ? DownloadAudioResponse :
+  T extends FetchMetadataRequest ? FetchMetadataResponse :
   T extends GetHistoryRequest ? GetHistoryResponse :
   T extends GetSettingsRequest ? GetSettingsResponse :
   T extends UpdateSettingsRequest ? UpdateSettingsResponse :

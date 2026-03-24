@@ -1,8 +1,5 @@
 /**
  * Backend extraction client for the self-hosted mp3 app.
- *
- * The browser extension now relies on the Next.js backend for durable extraction
- * across supported platforms. The old public Cobalt dependency is gone.
  */
 
 const DEFAULT_API_URL = 'http://localhost:3000/api/extract';
@@ -16,6 +13,11 @@ export interface ExtractErrorResponse {
   error: string;
 }
 
+export interface MetadataResponse {
+  title: string;
+  durationSeconds: number;
+}
+
 export type BackendResponse = ExtractResponse | ExtractErrorResponse;
 
 function isValidUrl(urlString: string): boolean {
@@ -27,30 +29,63 @@ function isValidUrl(urlString: string): boolean {
   }
 }
 
-export async function extractAudio(url: string): Promise<BackendResponse> {
-  const trimmedUrl = url.trim();
-  if (!trimmedUrl) {
-    return { error: 'URL is required' };
-  }
+async function getApiEndpoint(): Promise<string> {
+  const { settings } = await chrome.storage.local.get({
+    settings: { apiEndpoint: DEFAULT_API_URL },
+  });
+  return settings?.apiEndpoint || DEFAULT_API_URL;
+}
 
-  if (!isValidUrl(trimmedUrl)) {
+export async function fetchMetadata(url: string): Promise<MetadataResponse | ExtractErrorResponse> {
+  const trimmedUrl = url.trim();
+  if (!trimmedUrl || !isValidUrl(trimmedUrl)) {
     return { error: 'Invalid URL' };
   }
 
   try {
-    const { settings } = await chrome.storage.local.get({
-      settings: {
-        apiEndpoint: DEFAULT_API_URL,
-      },
+    const apiEndpoint = await getApiEndpoint();
+    const metadataUrl = apiEndpoint.replace(/\/api\/extract\/?$/, '/api/metadata');
+
+    const response = await fetch(metadataUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: trimmedUrl }),
     });
 
-    const apiEndpoint = settings?.apiEndpoint || DEFAULT_API_URL;
+    const data = await response.json();
+    if (!response.ok) {
+      return { error: data?.error || 'Failed to fetch metadata' };
+    }
+
+    return { title: data.title, durationSeconds: data.durationSeconds };
+  } catch {
+    return { error: 'Failed to connect to backend' };
+  }
+}
+
+export interface ExtractOptions {
+  url: string;
+  startTime?: number;
+  endTime?: number;
+}
+
+export async function extractAudio(options: ExtractOptions): Promise<BackendResponse> {
+  const trimmedUrl = options.url.trim();
+  if (!trimmedUrl || !isValidUrl(trimmedUrl)) {
+    return { error: 'Invalid URL' };
+  }
+
+  try {
+    const apiEndpoint = await getApiEndpoint();
+
+    const body: Record<string, unknown> = { url: trimmedUrl };
+    if (options.startTime !== undefined) body.startTime = options.startTime;
+    if (options.endTime !== undefined) body.endTime = options.endTime;
+
     const response = await fetch(apiEndpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ url: trimmedUrl }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
     });
 
     if (!response.ok || !response.body) {

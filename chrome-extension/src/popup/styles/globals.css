@@ -316,3 +316,32 @@ input {
   color: var(--text-secondary);
   opacity: 0.5;
 }
+
+/* Range slider thumb styles */
+.range-thumb::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: white;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  border: 2px solid var(--bg);
+}
+
+.range-thumb::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: white;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  border: 2px solid var(--bg);
+}
+
+.range-thumb:focus {
+  outline: none;
+}

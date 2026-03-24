@@ -54,7 +54,7 @@ export function handleContextMenuClick(): void {
         return;
       }
 
-      const result = await extractAudio(url);
+      const result = await extractAudio({ url });
 
       if ('error' in result) {
         await HistoryManager.addHistoryItem({

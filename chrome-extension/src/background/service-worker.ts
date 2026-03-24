@@ -10,6 +10,7 @@ import { setupContextMenu, handleContextMenuClick } from './handlers/context-men
 import { HistoryManager } from './storage/history';
 import { SettingsManager } from './storage/settings';
 import { ensureBackendRunning } from './api/backend-launcher';
+import { fetchMetadata } from './api/cobalt';
 import {
   GetHistoryRequest,
   GetSettingsRequest,
@@ -17,6 +18,7 @@ import {
   ClearHistoryRequest,
   CheckBackendRequest,
   StartBackendRequest,
+  FetchMetadataRequest,
 } from '../shared/types/messages';
 import { DEFAULT_SETTINGS } from '../shared/types/storage';
 
@@ -45,6 +47,14 @@ router.register('UPDATE_SETTINGS', async (message: UpdateSettingsRequest) => {
 router.register('CLEAR_HISTORY', async (_message: ClearHistoryRequest) => {
   await HistoryManager.clearHistory();
   return { success: true };
+});
+
+router.register('FETCH_METADATA', async (message: FetchMetadataRequest) => {
+  const result = await fetchMetadata(message.url);
+  if ('error' in result) {
+    return { success: false, error: result.error };
+  }
+  return { success: true, title: result.title, durationSeconds: result.durationSeconds };
 });
 
 router.register('CHECK_BACKEND', async (_message: CheckBackendRequest) => {

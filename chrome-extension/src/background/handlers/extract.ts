@@ -13,7 +13,7 @@ export async function handleExtractAudio(
   message: ExtractAudioRequest,
   _sender: chrome.runtime.MessageSender
 ): Promise<ExtractAudioResponse> {
-  const { url } = message;
+  const { url, startTime, endTime } = message;
 
   // Ensure the backend is running before extraction
   const settings = await SettingsManager.getSettings();
@@ -23,7 +23,7 @@ export async function handleExtractAudio(
     return { success: false, error: backend.message || 'Backend is not running' };
   }
 
-  const result = await extractAudio(url);
+  const result = await extractAudio({ url, startTime, endTime });
 
   if ('error' in result) {
     await HistoryManager.addHistoryItem({

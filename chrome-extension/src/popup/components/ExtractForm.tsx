@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 
 interface ExtractFormProps {
-  onExtract: (url: string) => Promise<void>;
+  onGetInfo: (url: string) => Promise<void>;
   loading: boolean;
 }
 
-export default function ExtractForm({ onExtract, loading }: ExtractFormProps) {
+export default function ExtractForm({ onGetInfo, loading }: ExtractFormProps) {
   const [url, setUrl] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -23,7 +23,7 @@ export default function ExtractForm({ onExtract, loading }: ExtractFormProps) {
     e.preventDefault();
     const trimmed = url.trim();
     if (!trimmed || loading) return;
-    await onExtract(trimmed);
+    await onGetInfo(trimmed);
   };
 
   return (
@@ -43,7 +43,7 @@ export default function ExtractForm({ onExtract, loading }: ExtractFormProps) {
         />
       </div>
       <button type="submit" disabled={!url.trim() || loading} className="btn-primary">
-        {loading ? 'Extracting...' : 'Extract Audio'}
+        {loading ? 'Loading...' : 'Get Info'}
       </button>
     </form>
   );
@@ -52,4 +52,9 @@ export default function ExtractForm({ onExtract, loading }: ExtractFormProps) {
 function isVideoUrl(url: string): boolean {
   const patterns = [/youtube\.com\/watch/, /youtu\.be\//, /vimeo\.com\//, /tiktok\.com\//];
   return patterns.some(p => p.test(url));
+}
+
+export function getUrlFromForm(): string {
+  const input = document.getElementById('url-input') as HTMLInputElement | null;
+  return input?.value.trim() || '';
 }
