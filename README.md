@@ -71,7 +71,28 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-## Browser extension setup
+## Quick install (extension + auto-launch)
+
+The install script builds everything and sets up the backend to launch automatically when you use the extension:
+
+```bash
+# 1. Install yt-dlp (see above) and ffmpeg
+
+# 2. Build and load the extension first
+cd chrome-extension && npm install && npm run build && cd ..
+
+# 3. Load chrome-extension/dist/ as unpacked extension in Chrome or Brave
+#    (chrome://extensions or brave://extensions -> Developer mode -> Load unpacked)
+
+# 4. Copy the extension ID from the extensions page, then run:
+./scripts/install.sh <your-extension-id>
+```
+
+After this, the backend starts on demand when you extract audio — no manual terminal needed.
+
+## Manual extension setup
+
+If you prefer to run the backend yourself:
 
 ```bash
 cd chrome-extension
@@ -79,7 +100,7 @@ npm install
 npm run build
 ```
 
-Then load `chrome-extension/dist/` as an unpacked extension:
+Load `chrome-extension/dist/` as an unpacked extension:
 
 | Browser | URL |
 |---|---|
@@ -87,6 +108,8 @@ Then load `chrome-extension/dist/` as an unpacked extension:
 | Brave | `brave://extensions/` |
 
 Enable **Developer mode**, click **Load unpacked**, and select the `dist/` folder.
+
+Start the backend in a terminal (`npm run dev` or `npm start`) before using the extension.
 
 By default the extension points to `http://localhost:3000/api/extract`. If you deploy the backend elsewhere, open the extension settings and update the endpoint.
 

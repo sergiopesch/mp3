@@ -3,8 +3,10 @@
  */
 
 import { extractAudio } from '../api/cobalt';
+import { ensureBackendRunning } from '../api/backend-launcher';
 import { HistoryManager } from '../storage/history';
 import { SettingsManager } from '../storage/settings';
+import { DEFAULT_SETTINGS } from '../../shared/types/storage';
 
 const CONTEXT_MENU_ID = 'extract-audio';
 
@@ -38,6 +40,20 @@ export function handleContextMenuClick(): void {
     }
 
     try {
+      // Ensure the backend is running before extraction
+      const preSettings = await SettingsManager.getSettings();
+      const apiEndpoint = preSettings.apiEndpoint || DEFAULT_SETTINGS.apiEndpoint;
+      const backend = await ensureBackendRunning(apiEndpoint);
+      if (!backend.ok) {
+        chrome.notifications.create({
+          type: 'basic',
+          iconUrl: chrome.runtime.getURL('icons/icon48.png'),
+          title: 'Backend Not Running',
+          message: backend.message || 'Could not start the backend',
+        });
+        return;
+      }
+
       const result = await extractAudio(url);
 
       if ('error' in result) {
