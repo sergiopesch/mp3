@@ -2,30 +2,29 @@
 
 Self-hosted audio extraction from video URLs, powered by your own Next.js backend with `yt-dlp` and `ffmpeg`.
 
-This repo includes:
-- a **web app** for pasting a URL and downloading the extracted MP3
-- a **Chrome extension** that calls the same backend
+## Ways to use it
 
-The old dependency on the public Cobalt API has been removed. Extraction now runs through a local or self-hosted backend you control.
+### 1. Web app
 
-## What changed
+Open `http://localhost:3000`, paste a video URL, and download the extracted MP3.
 
-- **Backend is self-owned again**: `src/app/api/extract` now spawns local `yt-dlp` and uses `ffmpeg` for conversion.
-- **Streaming progress is back**: the web app consumes newline-delimited JSON progress events from the server.
-- **Downloads are served locally**: extracted files live under `tmp/<job-id>/` and are downloaded via `GET /api/download`.
-- **Extension aligned to backend**: the extension now expects your own `/api/extract` endpoint instead of a public third-party API.
-- **User-level yt-dlp supported**: defaults to `~/.local/share/mp3/yt-dlp-venv/bin/yt-dlp`, which avoids mutating the system Python install.
+### 2. Chrome extension
+
+Install the browser extension to extract audio from any tab — via the popup, right-click context menu, or auto-detected MP3 links. See [chrome-extension/README.md](chrome-extension/README.md) for build and install steps.
+
+### 3. Brave extension
+
+The same extension works in Brave. Load it from `brave://extensions/` instead of `chrome://extensions/`.
+
+All three options use the same self-hosted backend. No third-party APIs, no accounts, no rate limits.
 
 ## Requirements
 
-You need:
 - Node.js 18+
 - `ffmpeg` available on the machine
 - `yt-dlp` available either:
   - in a dedicated user-level virtualenv, or
-  - via `YT_DLP_BIN`
-
-On this machine, `ffmpeg` is already present at `/usr/bin/ffmpeg`.
+  - via the `YT_DLP_BIN` environment variable
 
 ## Local setup
 
@@ -35,9 +34,9 @@ On this machine, `ffmpeg` is already present at `/usr/bin/ffmpeg`.
 npm install
 ```
 
-### 2. Install `yt-dlp`
+### 2. Install yt-dlp
 
-A user-level Python virtualenv is the safest sane default here and avoids both system package conflicts and Next.js scanning issues inside the repo:
+A user-level Python virtualenv avoids system package conflicts:
 
 ```bash
 mkdir -p ~/.local/share/mp3
@@ -54,8 +53,6 @@ ffmpeg -version
 ```
 
 ### 4. Optional environment config
-
-Copy the example file if you want explicit overrides:
 
 ```bash
 cp .env.example .env.local
@@ -74,19 +71,7 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-## Web app flow
-
-1. Paste a supported video URL.
-2. `POST /api/extract` validates the URL and checks local extractor binaries.
-3. The server runs `yt-dlp` once for metadata, then again for extraction/conversion.
-4. The route streams progress messages back to the browser.
-5. On success, the UI exposes a download button pointing at `/api/download?id=...&filename=...`.
-
-## Browser extension
-
-The extension now uses the same self-hosted backend for extraction.
-
-### Build
+## Browser extension setup
 
 ```bash
 cd chrome-extension
@@ -94,28 +79,33 @@ npm install
 npm run build
 ```
 
-Load `chrome-extension/dist/` as an unpacked extension.
+Then load `chrome-extension/dist/` as an unpacked extension:
 
-### Default endpoint
+| Browser | URL |
+|---|---|
+| Chrome | `chrome://extensions/` |
+| Brave | `brave://extensions/` |
 
-By default the extension points to:
+Enable **Developer mode**, click **Load unpacked**, and select the `dist/` folder.
 
-```text
-http://localhost:3000/api/extract
-```
+By default the extension points to `http://localhost:3000/api/extract`. If you deploy the backend elsewhere, open the extension settings and update the endpoint.
 
-If you deploy the app elsewhere, open the extension settings and change the API endpoint to your deployed backend’s `/api/extract` URL.
+## How extraction works
 
-## Verification checklist
+1. `POST /api/extract` validates the URL and checks local binaries.
+2. The server runs `yt-dlp` for metadata (title + duration).
+3. A second `yt-dlp` pass extracts and converts audio to MP3.
+4. Progress is streamed back as newline-delimited JSON.
+5. The client downloads the file via `GET /api/download?id=...&filename=...`.
 
-Useful local checks:
+## Verification
 
 ```bash
 npm run build
 cd chrome-extension && npm run build
 ```
 
-For a live extraction test against a running local server:
+Live extraction test against a running local server:
 
 ```bash
 curl -X POST http://localhost:3000/api/extract \
@@ -124,20 +114,12 @@ curl -X POST http://localhost:3000/api/extract \
   --no-buffer
 ```
 
-Then download the resulting file from the returned `downloadPath`.
-
 ## Storage and cleanup
 
-Extracted files are stored under:
-
-```text
-tmp/<job-id>/<filename>.mp3
-```
-
-Old job directories are cleaned up opportunistically when new extraction requests arrive. Retention is controlled by `EXTRACT_RETENTION_HOURS`.
+Extracted files are stored under `tmp/<job-id>/<filename>.mp3`. Old job directories are cleaned up when new extraction requests arrive, controlled by `EXTRACT_RETENTION_HOURS` (default 24h).
 
 ## Notes
 
-- This app now assumes a **Node.js runtime**, not an edge runtime.
-- The backend currently always outputs MP3.
-- Some sites may still fail if they require cookies, login state, or site-specific extractor workarounds. The core architecture is now durable because it is not pinned to a public API that can revoke access.
+- This app requires a **Node.js runtime** — it cannot run on serverless/edge platforms (no local binaries).
+- Output is always MP3.
+- Some sites may require cookies or site-specific workarounds. The architecture is durable because it runs your own tooling, not a third-party API.
