@@ -7,6 +7,7 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 type ProgressMessage = { type: "progress"; message: string };
+type MetadataMessage = { type: "metadata"; data: { title: string; duration: string; durationSeconds: number } };
 type ErrorMessage = { type: "error"; message: string };
 type DoneMessage = {
   type: "done";
@@ -14,12 +15,13 @@ type DoneMessage = {
     id: string;
     title: string;
     duration: string;
+    durationSeconds: number;
     filename: string;
     downloadPath: string;
   };
 };
 
-type StreamMessage = ProgressMessage | ErrorMessage | DoneMessage;
+type StreamMessage = ProgressMessage | MetadataMessage | ErrorMessage | DoneMessage;
 
 const TMP_DIR = path.join(process.cwd(), "tmp");
 const DEFAULT_YT_DLP_PATH = path.join(
@@ -56,6 +58,13 @@ function formatDuration(secondsRaw: string) {
   }
 
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+function formatSecondsToTimestamp(totalSeconds: number) {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = Math.floor(totalSeconds % 60);
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 function sanitizeFilename(input: string) {
@@ -122,9 +131,18 @@ function spawnAndCapture(args: string[]) {
 
 export async function POST(req: NextRequest) {
   let rawUrl: string | undefined;
+  let startTime: number | undefined;
+  let endTime: number | undefined;
+
   try {
     const body = await req.json();
     rawUrl = typeof body?.url === "string" ? body.url.trim() : undefined;
+    if (typeof body?.startTime === "number" && body.startTime >= 0) {
+      startTime = body.startTime;
+    }
+    if (typeof body?.endTime === "number" && body.endTime > 0) {
+      endTime = body.endTime;
+    }
   } catch {
     return Response.json({ error: "Invalid request body" }, { status: 400 });
   }
@@ -167,6 +185,7 @@ export async function POST(req: NextRequest) {
       let lastPercent = "";
       let title = "Audio";
       let duration = "Unknown";
+      let durationSeconds = 0;
 
       const close = () => {
         if (!closed) {
@@ -210,17 +229,28 @@ export async function POST(req: NextRequest) {
 
         const [rawTitle, rawDuration] = info.stdout.trim().split(/\r?\n/);
         title = rawTitle?.trim() || title;
+        durationSeconds = Number(rawDuration?.trim() || "0");
+        if (!Number.isFinite(durationSeconds)) durationSeconds = 0;
         duration = formatDuration(rawDuration?.trim() || "");
 
+        send(controller, {
+          type: "metadata",
+          data: { title, duration, durationSeconds },
+        });
         send(controller, {
           type: "progress",
           message: `Found: ${title}${duration !== "Unknown" ? ` (${duration})` : ""}`,
         });
-        send(controller, { type: "progress", message: "Downloading and converting to MP3..." });
+        const hasTimeRange = startTime !== undefined || endTime !== undefined;
+        if (hasTimeRange) {
+          const start = formatSecondsToTimestamp(startTime ?? 0);
+          const end = endTime !== undefined ? formatSecondsToTimestamp(endTime) : "inf";
+          send(controller, { type: "progress", message: `Downloading section ${start} - ${end === "inf" ? "end" : end}...` });
+        } else {
+          send(controller, { type: "progress", message: "Downloading and converting to MP3..." });
+        }
 
-        extractionChild = spawn(
-          YT_DLP_BIN,
-          [
+        const extractArgs = [
             "--no-playlist",
             "--extract-audio",
             "--audio-format",
@@ -233,10 +263,23 @@ export async function POST(req: NextRequest) {
             "--newline",
             "--progress-template",
             "download:%(progress._percent_str)s",
-            "--output",
-            outputTemplate,
-            url,
-          ],
+        ];
+
+        if (hasTimeRange) {
+          const start = startTime ?? 0;
+          const end = endTime !== undefined ? endTime : Infinity;
+          extractArgs.push(
+            "--download-sections",
+            `*${start}-${end === Infinity ? "inf" : end}`,
+            "--force-keyframes-at-cuts",
+          );
+        }
+
+        extractArgs.push("--output", outputTemplate, url);
+
+        extractionChild = spawn(
+          YT_DLP_BIN,
+          extractArgs,
           { env: SPAWN_ENV }
         );
 
@@ -308,6 +351,7 @@ export async function POST(req: NextRequest) {
                 id: jobId,
                 title,
                 duration,
+                durationSeconds,
                 filename: normalizedFilename,
                 downloadPath: `/api/download?id=${encodeURIComponent(jobId)}&filename=${encodeURIComponent(normalizedFilename)}`,
               },
