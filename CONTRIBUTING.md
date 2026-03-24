@@ -8,14 +8,21 @@ Guidelines for developing and contributing to the mp3 project.
 
 - **Node.js** 18 or later
 - **npm** (comes with Node.js)
-- **yt-dlp** — install via `pip install yt-dlp`
+- **Python 3** with `venv` module
+- **yt-dlp** — installed via `./setup.sh` or manually with `pip install yt-dlp`
 - **ffmpeg** — install via your system package manager
 
-### Installation
+### Quick Setup
 
 ```bash
 git clone https://github.com/sergiopesch/mp3.git
 cd mp3
+./setup.sh
+```
+
+### Manual Installation
+
+```bash
 npm install
 ```
 
@@ -39,14 +46,26 @@ npm start
 ```
 src/app/
 ├── api/
-│   ├── extract/route.ts     Audio extraction API endpoint
-│   └── download/route.ts    File download API endpoint
+│   ├── extract/route.ts     Audio extraction endpoint (supports time range)
+│   ├── metadata/route.ts    Quick metadata lookup (title + duration)
+│   └── download/route.ts    File download endpoint
 ├── layout.tsx               Root layout (server component)
-├── page.tsx                 Home page (client component)
+├── page.tsx                 Home page (client component, multi-step flow)
 └── globals.css              Global styles and CSS variables
-```
 
-All source code lives under `src/app/` following the Next.js App Router convention. There are no additional libraries, utilities, or shared modules — the project is intentionally kept small.
+scripts/
+├── setup.sh                 → symlinked from ./setup.sh
+├── install.sh               Backend + native messaging installer
+└── native-host.js           Native messaging host for auto-launching backend
+
+chrome-extension/
+├── src/background/          Service worker, API client, backend launcher, handlers
+├── src/popup/               Popup UI with React + Tailwind (extract, preview, history)
+├── src/options/             Options page for configuring backend endpoint
+├── src/shared/              Message types, storage schema
+├── src/content/             Content script (MP3 link detection)
+└── webpack.config.js        Webpack build for extension
+```
 
 ## Code Conventions
 
@@ -61,18 +80,12 @@ All source code lives under `src/app/` following the Next.js App Router conventi
 - Use Tailwind CSS utility classes directly in JSX
 - Custom design tokens are defined as CSS variables in `globals.css`
 - Reference variables with `var(--name)` inside Tailwind's bracket syntax: `text-[var(--text-secondary)]`
-
-### Components
-
-- The app currently uses a single client component (`page.tsx`). If adding new pages or components, follow the Next.js App Router patterns:
-  - Server components by default
-  - Add `"use client"` only when the component needs browser APIs, state, or effects
-  - Place shared components in `src/components/` (create the directory if needed)
+- Tailwind v4 in the web app, Tailwind v3 in the extension
 
 ### API Routes
 
 - API routes live in `src/app/api/{name}/route.ts`
-- Export named functions matching HTTP methods: `GET`, `POST`, `PUT`, `DELETE`
+- Export named functions matching HTTP methods: `GET`, `POST`
 - Return `Response` objects (Web API standard)
 - Validate all input before processing
 
@@ -82,6 +95,14 @@ All source code lives under `src/app/` following the Next.js App Router conventi
 
 The extract endpoint uses `ReadableStream` to stream progress updates as newline-delimited JSON. This was chosen over Server-Sent Events (SSE) or WebSockets for simplicity — it works with a standard `fetch()` call and requires no additional libraries.
 
+### Time range extraction
+
+The extract endpoint accepts optional `startTime` and `endTime` parameters. When provided, it passes `--download-sections` and `--force-keyframes-at-cuts` to yt-dlp, which downloads and converts only the requested section.
+
+### Metadata endpoint
+
+`POST /api/metadata` returns just the title and duration without starting extraction. This lets the UI show a preview with a range slider before the user commits to downloading.
+
 ### System process spawning
 
 `yt-dlp` and `ffmpeg` are invoked via `child_process.spawn()` rather than being wrapped in a library. This keeps the dependency tree minimal and gives full control over CLI arguments.
@@ -90,29 +111,11 @@ The extract endpoint uses `ReadableStream` to stream progress updates as newline
 
 Extracted files are stored in `tmp/{jobId}/` at the project root. Old jobs are cleaned up opportunistically when new extraction requests arrive, based on `EXTRACT_RETENTION_HOURS` (default 24h). Failed extractions clean up their job directory immediately.
 
-### Single-component UI
+### Native messaging
 
-The entire frontend is one component to keep things simple. If the app grows, consider extracting:
-- A `ProgressCard` component for the extraction state
-- A `ResultCard` component for the done state
-- An `ErrorCard` component for the error state
-
-## Testing
-
-There is no test suite yet. If adding tests:
-
-- Use the testing framework of your choice (Jest, Vitest, or Playwright for E2E)
-- Unit test the `formatDuration` helper and URL validation logic
-- Integration test the API routes with mocked `yt-dlp` responses
-- E2E test the full extraction flow
+The extension can auto-launch the backend through Chrome Native Messaging. The host script (`scripts/native-host.js`) checks if the backend is running and starts it if needed. This is configured by the `setup.sh` install script.
 
 ## Common Development Tasks
-
-### Adding a new API endpoint
-
-1. Create `src/app/api/{name}/route.ts`
-2. Export the HTTP method handler (`GET`, `POST`, etc.)
-3. Document the endpoint in [API.md](./API.md)
 
 ### Modifying the extraction process
 
@@ -120,8 +123,14 @@ The extraction logic is in `src/app/api/extract/route.ts`. Key areas:
 
 - `spawnAndCapture()` — Phase 1: yt-dlp metadata retrieval (title + duration)
 - Extraction `spawn()` call — Phase 2: yt-dlp download and conversion with `--extract-audio --audio-format mp3`
+- `--download-sections` — used when `startTime`/`endTime` are provided for partial extraction
 - Progress parsing — regex matches on `download:NN.N%` from `--progress-template` output
 - Conversion detection — looks for `[ExtractAudio]` in stdout
+
+### Adding a new API endpoint
+
+1. Create `src/app/api/{name}/route.ts`
+2. Export the HTTP method handler (`GET`, `POST`, etc.)
 
 ### Changing the design
 
@@ -133,7 +142,7 @@ The extraction logic is in `src/app/api/extract/route.ts`. Key areas:
 
 ### "yt-dlp: command not found"
 
-yt-dlp is not on your `PATH`. Install it with `pip install yt-dlp` and verify with `yt-dlp --version`.
+yt-dlp is not installed. Run `./setup.sh` to install it, or install manually with `pip install yt-dlp`.
 
 ### "ffmpeg not found" errors during extraction
 

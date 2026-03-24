@@ -1,6 +1,6 @@
 # Extraction Backend
 
-Applies to: `src/app/api/extract/route.ts`, `src/app/api/download/route.ts`
+Applies to: `src/app/api/extract/route.ts`, `src/app/api/metadata/route.ts`, `src/app/api/download/route.ts`
 
 ## Two-stage extraction
 1. **Metadata pass**: `yt-dlp --no-playlist --print %(title)s --print %(duration)s <url>`
@@ -8,11 +8,23 @@ Applies to: `src/app/api/extract/route.ts`, `src/app/api/download/route.ts`
 
 Do not collapse these into a single pass — the metadata is needed for progress messages before extraction starts.
 
+## Time range extraction
+- The extract endpoint accepts optional `startTime` and `endTime` (numbers, in seconds)
+- When provided, `--download-sections "*START-END"` and `--force-keyframes-at-cuts` are added to the extraction args
+- The metadata endpoint (`/api/metadata`) does NOT accept time range — it returns full clip info
+- Time values are validated at parse time (must be numbers >= 0)
+
+## Metadata endpoint
+- `POST /api/metadata` returns `{ title, durationSeconds }` — lightweight, no extraction
+- Used by the web UI and extension to show preview with range slider before extraction
+- Uses the same `spawnAndCapture()` helper as the extract route's metadata pass
+- `runtime = "nodejs"`, `maxDuration = 30`
+
 ## Binary discovery
 - `YT_DLP_BIN` env var, falling back to `~/.local/share/mp3/yt-dlp-venv/bin/yt-dlp`
 - `FFMPEG_BIN` env var, falling back to `/usr/bin/ffmpeg`
 - `FFMPEG_LOCATION` is passed in the child process env so yt-dlp can locate ffmpeg
-- `PATH` is extended to include the yt-dlp directory and the project `.venv/bin`
+- `PATH` is extended to include the yt-dlp directory
 - Binary availability is checked with `fs.access()` before starting extraction
 - Do not hardcode other machine-specific paths
 
@@ -36,6 +48,7 @@ Do not collapse these into a single pass — the metadata is needed for progress
 
 ## Progress streaming
 - Progress lines include download percentage (parsed from `--progress-template` output)
+- A `metadata` message is sent early with title, duration, and durationSeconds
 - Conversion detection is based on `[ExtractAudio]` in stdout
 - Duplicate percentages are suppressed (only sent when value changes)
 - Do not silently degrade streaming into a blocking response

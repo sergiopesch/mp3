@@ -86,10 +86,3 @@ router.listen();
 setupContextMenu();
 handleContextMenuClick();
 
-// Log service worker activation
-console.log('MP3 Extractor service worker activated');
-
-// Handle extension startup
-chrome.runtime.onStartup.addListener(() => {
-  console.log('Extension started');
-});

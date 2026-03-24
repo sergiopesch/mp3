@@ -54,7 +54,3 @@ function isVideoUrl(url: string): boolean {
   return patterns.some(p => p.test(url));
 }
 
-export function getUrlFromForm(): string {
-  const input = document.getElementById('url-input') as HTMLInputElement | null;
-  return input?.value.trim() || '';
-}

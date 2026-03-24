@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import ExtractForm, { getUrlFromForm } from './components/ExtractForm';
+import ExtractForm from './components/ExtractForm';
 import { HistoryList } from './components/HistoryList';
 import { StatusMessage } from './components/StatusMessage';
 import { ProgressBar } from './components/ProgressBar';
