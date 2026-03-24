@@ -1,17 +1,53 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import ExtractForm from './components/ExtractForm';
 import { HistoryList } from './components/HistoryList';
 import { StatusMessage } from './components/StatusMessage';
 import { ProgressBar } from './components/ProgressBar';
 import { useExtract } from './hooks/useExtract';
 import { useHistory } from './hooks/useHistory';
+import { sendMessage } from '../shared/messaging/send';
 
 type Tab = 'extract' | 'history';
+type BackendStatus = 'checking' | 'running' | 'stopped' | 'starting' | 'error';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('extract');
+  const [backendStatus, setBackendStatus] = useState<BackendStatus>('checking');
+  const [backendError, setBackendError] = useState('');
   const { extract, status, progress, result, error, reset, download } = useExtract();
   const { history, loading, refresh, clearHistory } = useHistory();
+
+  const checkBackend = useCallback(async () => {
+    setBackendStatus('checking');
+    try {
+      const response = await sendMessage({ type: 'CHECK_BACKEND' });
+      setBackendStatus(response.running ? 'running' : 'stopped');
+    } catch {
+      setBackendStatus('stopped');
+    }
+  }, []);
+
+  const startBackend = useCallback(async () => {
+    setBackendStatus('starting');
+    setBackendError('');
+    try {
+      const response = await sendMessage({ type: 'START_BACKEND' });
+      if (response.success) {
+        setBackendStatus('running');
+      } else {
+        setBackendStatus('error');
+        setBackendError(response.error || 'Failed to start the backend');
+      }
+    } catch (e) {
+      setBackendStatus('error');
+      setBackendError(e instanceof Error ? e.message : 'Failed to start the backend');
+    }
+  }, []);
+
+  // Check backend status when popup opens
+  useEffect(() => {
+    checkBackend();
+  }, [checkBackend]);
 
   // Refresh history when switching to history tab
   useEffect(() => {
@@ -45,54 +81,131 @@ export default function App() {
         </button>
       </header>
 
-      <nav className="tab-nav">
-        <button
-          className={`tab-btn ${activeTab === 'extract' ? 'active' : ''}`}
-          onClick={() => setActiveTab('extract')}
-        >
-          Extract
-        </button>
-        <button
-          className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
-          onClick={() => setActiveTab('history')}
-        >
-          History {history.length > 0 && `(${history.length})`}
-        </button>
-      </nav>
+      {backendStatus !== 'running' ? (
+        <main className="popup-content">
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', paddingTop: '20px' }}>
+            {backendStatus === 'checking' && (
+              <>
+                <div className="animate-spin" style={{ width: '32px', height: '32px', border: '3px solid var(--border)', borderTopColor: '#8b5cf6', borderRadius: '50%' }} />
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Checking backend...</p>
+              </>
+            )}
 
-      <main className="popup-content">
-        {activeTab === 'extract' ? (
-          <>
-            {status === 'idle' && (
-              <ExtractForm onExtract={extract} loading={false} />
+            {backendStatus === 'stopped' && (
+              <>
+                <div style={{
+                  width: '48px', height: '48px', borderRadius: '12px',
+                  background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text-secondary)' }}>
+                    <rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
+                    <rect x="2" y="14" width="20" height="8" rx="2" ry="2" />
+                    <line x1="6" y1="6" x2="6.01" y2="6" />
+                    <line x1="6" y1="18" x2="6.01" y2="18" />
+                  </svg>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <p style={{ fontSize: '14px', fontWeight: 500, marginBottom: '4px' }}>Backend is offline</p>
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Start the extraction server to begin</p>
+                </div>
+                <button onClick={startBackend} className="btn-primary" style={{ marginTop: '4px' }}>
+                  Start Backend
+                </button>
+              </>
             )}
-            {status === 'extracting' && (
-              <ProgressBar message={progress || 'Processing...'} />
+
+            {backendStatus === 'starting' && (
+              <>
+                <div className="animate-spin" style={{ width: '32px', height: '32px', border: '3px solid var(--border)', borderTopColor: '#8b5cf6', borderRadius: '50%' }} />
+                <div style={{ textAlign: 'center' }}>
+                  <p style={{ fontSize: '14px', fontWeight: 500, marginBottom: '4px' }}>Starting backend...</p>
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>This may take a few seconds</p>
+                </div>
+              </>
             )}
-            {status === 'done' && result && (
-              <StatusMessage
-                type="success"
-                filename={result.filename}
-                onDownload={download}
-                onReset={reset}
+
+            {backendStatus === 'error' && (
+              <>
+                <div style={{
+                  width: '48px', height: '48px', borderRadius: '12px',
+                  background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="15" y1="9" x2="9" y2="15" />
+                    <line x1="9" y1="9" x2="15" y2="15" />
+                  </svg>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <p style={{ fontSize: '14px', fontWeight: 500, marginBottom: '4px' }}>Could not start backend</p>
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', maxWidth: '260px' }}>{backendError}</p>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                  <button onClick={startBackend} className="btn-primary">
+                    Retry
+                  </button>
+                  <button onClick={checkBackend} className="btn-secondary">
+                    Check Again
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </main>
+      ) : (
+        <>
+          <nav className="tab-nav">
+            <button
+              className={`tab-btn ${activeTab === 'extract' ? 'active' : ''}`}
+              onClick={() => setActiveTab('extract')}
+            >
+              Extract
+            </button>
+            <button
+              className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
+              onClick={() => setActiveTab('history')}
+            >
+              History {history.length > 0 && `(${history.length})`}
+            </button>
+          </nav>
+
+          <main className="popup-content">
+            {activeTab === 'extract' ? (
+              <>
+                {status === 'idle' && (
+                  <ExtractForm onExtract={extract} loading={false} />
+                )}
+                {status === 'extracting' && (
+                  <ProgressBar message={progress || 'Processing...'} />
+                )}
+                {status === 'done' && result && (
+                  <StatusMessage
+                    type="success"
+                    filename={result.filename}
+                    onDownload={download}
+                    onReset={reset}
+                  />
+                )}
+                {status === 'error' && (
+                  <StatusMessage
+                    type="error"
+                    message={error}
+                    onReset={reset}
+                  />
+                )}
+              </>
+            ) : (
+              <HistoryList
+                history={history}
+                loading={loading}
+                onClear={clearHistory}
               />
             )}
-            {status === 'error' && (
-              <StatusMessage
-                type="error"
-                message={error}
-                onReset={reset}
-              />
-            )}
-          </>
-        ) : (
-          <HistoryList
-            history={history}
-            loading={loading}
-            onClear={clearHistory}
-          />
-        )}
-      </main>
+          </main>
+        </>
+      )}
     </div>
   );
 }

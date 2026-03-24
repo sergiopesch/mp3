@@ -8,7 +8,9 @@ export type MessageType =
   | 'GET_HISTORY'
   | 'GET_SETTINGS'
   | 'UPDATE_SETTINGS'
-  | 'CLEAR_HISTORY';
+  | 'CLEAR_HISTORY'
+  | 'CHECK_BACKEND'
+  | 'START_BACKEND';
 
 export interface ExtractAudioRequest {
   type: 'EXTRACT_AUDIO';
@@ -67,13 +69,32 @@ export interface ClearHistoryResponse {
   success: boolean;
 }
 
+export interface CheckBackendRequest {
+  type: 'CHECK_BACKEND';
+}
+
+export interface CheckBackendResponse {
+  running: boolean;
+}
+
+export interface StartBackendRequest {
+  type: 'START_BACKEND';
+}
+
+export interface StartBackendResponse {
+  success: boolean;
+  error?: string;
+}
+
 export type Message =
   | ExtractAudioRequest
   | DownloadAudioRequest
   | GetHistoryRequest
   | GetSettingsRequest
   | UpdateSettingsRequest
-  | ClearHistoryRequest;
+  | ClearHistoryRequest
+  | CheckBackendRequest
+  | StartBackendRequest;
 
 export type MessageResponse<T extends Message> =
   T extends ExtractAudioRequest ? ExtractAudioResponse :
@@ -82,4 +103,6 @@ export type MessageResponse<T extends Message> =
   T extends GetSettingsRequest ? GetSettingsResponse :
   T extends UpdateSettingsRequest ? UpdateSettingsResponse :
   T extends ClearHistoryRequest ? ClearHistoryResponse :
+  T extends CheckBackendRequest ? CheckBackendResponse :
+  T extends StartBackendRequest ? StartBackendResponse :
   never;

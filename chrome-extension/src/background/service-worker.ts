@@ -9,12 +9,16 @@ import { handleDownloadAudio } from './handlers/download';
 import { setupContextMenu, handleContextMenuClick } from './handlers/context-menu';
 import { HistoryManager } from './storage/history';
 import { SettingsManager } from './storage/settings';
+import { ensureBackendRunning } from './api/backend-launcher';
 import {
   GetHistoryRequest,
   GetSettingsRequest,
   UpdateSettingsRequest,
   ClearHistoryRequest,
+  CheckBackendRequest,
+  StartBackendRequest,
 } from '../shared/types/messages';
+import { DEFAULT_SETTINGS } from '../shared/types/storage';
 
 // Initialize message router
 const router = new MessageRouter();
@@ -41,6 +45,28 @@ router.register('UPDATE_SETTINGS', async (message: UpdateSettingsRequest) => {
 router.register('CLEAR_HISTORY', async (_message: ClearHistoryRequest) => {
   await HistoryManager.clearHistory();
   return { success: true };
+});
+
+router.register('CHECK_BACKEND', async (_message: CheckBackendRequest) => {
+  const settings = await SettingsManager.getSettings();
+  const apiEndpoint = settings.apiEndpoint || DEFAULT_SETTINGS.apiEndpoint;
+  try {
+    const base = new URL(apiEndpoint).origin;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3000);
+    const res = await fetch(base, { signal: controller.signal });
+    clearTimeout(timer);
+    return { running: res.ok || res.status === 404 };
+  } catch {
+    return { running: false };
+  }
+});
+
+router.register('START_BACKEND', async (_message: StartBackendRequest) => {
+  const settings = await SettingsManager.getSettings();
+  const apiEndpoint = settings.apiEndpoint || DEFAULT_SETTINGS.apiEndpoint;
+  const result = await ensureBackendRunning(apiEndpoint);
+  return { success: result.ok, error: result.message };
 });
 
 // Start listening for messages
