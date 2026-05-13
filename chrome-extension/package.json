@@ -27,5 +27,9 @@
     "typescript": "^5.7.2",
     "webpack": "^5.96.1",
     "webpack-cli": "^5.1.4"
+  },
+  "overrides": {
+    "fast-uri": "3.1.2",
+    "postcss": "8.5.10"
   }
 }
