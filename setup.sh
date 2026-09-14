@@ -51,11 +51,10 @@ install_all() {
   step 1 "Checking prerequisites..."
 
   if ! command -v node &>/dev/null; then
-    fail "Node.js is not installed. Install it from https://nodejs.org (v18+)"
+    fail "Node.js is not installed. Install it from https://nodejs.org (v20.9+)"
   fi
-  NODE_VER=$(node -v | sed 's/v//' | cut -d. -f1)
-  if [ "$NODE_VER" -lt 18 ]; then
-    fail "Node.js v18+ required (you have $(node -v))"
+  if ! node -e 'const [major, minor] = process.versions.node.split(".").map(Number); process.exit(major > 20 || (major === 20 && minor >= 9) ? 0 : 1)'; then
+    fail "Node.js v20.9+ required (you have $(node -v))"
   fi
   echo "    Node.js $(node -v)"
 

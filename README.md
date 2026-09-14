@@ -11,7 +11,7 @@ Works as a **browser extension** (Chrome / Brave) or a **web app** at `localhost
 ### What you need first
 
 - **Linux** (Ubuntu, Fedora, Arch, etc.)
-- **Node.js 18+** — [install here](https://nodejs.org)
+- **Node.js 20.9+ (Node 22 LTS recommended)** — [install here](https://nodejs.org)
 - **Python 3** — usually pre-installed on Linux
 - **ffmpeg** — install with `sudo apt install ffmpeg`
 
